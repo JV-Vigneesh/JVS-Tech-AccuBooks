@@ -1,10 +1,12 @@
-import { Product, Invoice, Voucher, InventoryTransaction } from '@/types/accounting';
+import { Product, Invoice, Voucher, InventoryTransaction, Company, Customer } from '@/types/accounting';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'accounting_products',
   INVOICES: 'accounting_invoices',
   VOUCHERS: 'accounting_vouchers',
   INVENTORY: 'accounting_inventory',
+  COMPANY: 'accounting_company',
+  CUSTOMERS: 'accounting_customers',
 };
 
 // Generic storage functions
@@ -90,4 +92,33 @@ export const saveInventoryTransaction = (transaction: InventoryTransaction): voi
     product.stock += transaction.type === 'in' ? transaction.quantity : -transaction.quantity;
     saveProduct(product);
   }
+};
+
+// Company
+export const getCompany = (): Company | null => {
+  const data = localStorage.getItem(STORAGE_KEYS.COMPANY);
+  return data ? JSON.parse(data) : null;
+};
+
+export const saveCompany = (company: Company): void => {
+  localStorage.setItem(STORAGE_KEYS.COMPANY, JSON.stringify(company));
+};
+
+// Customers
+export const getCustomers = (): Customer[] => getItems<Customer>(STORAGE_KEYS.CUSTOMERS);
+
+export const saveCustomer = (customer: Customer): void => {
+  const customers = getCustomers();
+  const index = customers.findIndex(c => c.id === customer.id);
+  if (index >= 0) {
+    customers[index] = customer;
+  } else {
+    customers.push(customer);
+  }
+  saveItems(STORAGE_KEYS.CUSTOMERS, customers);
+};
+
+export const deleteCustomer = (id: string): void => {
+  const customers = getCustomers().filter(c => c.id !== id);
+  saveItems(STORAGE_KEYS.CUSTOMERS, customers);
 };

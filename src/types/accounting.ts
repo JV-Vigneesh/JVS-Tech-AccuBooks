@@ -62,3 +62,30 @@ export interface InventoryTransaction {
   notes?: string;
   createdAt: string;
 }
+
+export interface Company {
+  id: string;
+  name: string;
+  address: string;
+  mobile: string;
+  email: string;
+  gstin?: string;
+  taxNumber?: string;
+  bankName?: string;
+  bankAccount?: string;
+  bankIfsc?: string;
+  logo?: string;
+  stamp?: string;
+  signature?: string;
+  createdAt: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  email?: string;
+  mobile?: string;
+  address?: string;
+  gstin?: string;
+  createdAt: string;
+}
