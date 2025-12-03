@@ -28,13 +28,19 @@ export interface Invoice {
   customerName: string;
   customerAddress: string;
   customerGSTIN?: string;
+  customerEmail?: string;
+  customerMobile?: string;
+  customerState?: string;
   date: string;
-  dueDate: string;
+  dueDate?: string;
+  dispatchedThrough?: string;
+  destination?: string;
   items: InvoiceItem[];
   subtotal: number;
   taxPercent: number;
   taxAmount: number;
   total: number;
+  declaration?: string;
   status: 'draft' | 'sent' | 'paid' | 'overdue';
   createdAt: string;
 }
