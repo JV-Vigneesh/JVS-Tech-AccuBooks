@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { getInvoices, saveInvoice, getProducts, getCustomers } from '@/lib/storage';
-import { Invoice, InvoiceItem, Product, Customer } from '@/types/accounting';
+import { getInvoices, saveInvoice, getProducts, getCustomers, getCompanies, getNextInvoiceNumber } from '@/lib/storage';
+import { Invoice, InvoiceItem, Product, Customer, Company, InvoiceTax } from '@/types/accounting';
 import { Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,9 +18,13 @@ export default function InvoiceForm() {
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  
   const [invoice, setInvoice] = useState<Invoice>({
     id: crypto.randomUUID(),
-    invoiceNumber: `INV-${Date.now()}`,
+    invoiceNumber: '',
+    companyId: '',
     customerName: '',
     customerAddress: '',
     customerGSTIN: '',
@@ -31,10 +35,18 @@ export default function InvoiceForm() {
     dueDate: '',
     dispatchedThrough: '',
     destination: '',
+    termsOfDelivery: '',
+    motorVehicleNo: '',
     items: [],
+    totalQty: 0,
     subtotal: 0,
+    taxes: [
+      { name: 'CGST', percent: 9, amount: 0 },
+      { name: 'SGST', percent: 9, amount: 0 },
+    ],
     taxPercent: 18,
     taxAmount: 0,
+    roundOff: 0,
     total: 0,
     declaration: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.',
     status: 'draft',
@@ -44,14 +56,55 @@ export default function InvoiceForm() {
   useEffect(() => {
     setProducts(getProducts());
     setCustomers(getCustomers());
+    const allCompanies = getCompanies();
+    setCompanies(allCompanies);
+    
     if (id) {
       const invoices = getInvoices();
       const existingInvoice = invoices.find(inv => inv.id === id);
       if (existingInvoice) {
-        setInvoice(existingInvoice);
+        // Ensure backward compatibility
+        const updatedInvoice = {
+          ...existingInvoice,
+          totalQty: existingInvoice.totalQty || 0,
+          taxes: existingInvoice.taxes || [
+            { name: 'CGST', percent: 9, amount: 0 },
+            { name: 'SGST', percent: 9, amount: 0 },
+          ],
+          roundOff: existingInvoice.roundOff || 0,
+        };
+        setInvoice(updatedInvoice);
+        if (existingInvoice.companyId) {
+          const comp = allCompanies.find(c => c.id === existingInvoice.companyId);
+          if (comp) setSelectedCompany(comp);
+        }
       }
+    } else {
+      // New invoice - set next invoice number
+      setInvoice(prev => ({
+        ...prev,
+        invoiceNumber: getNextInvoiceNumber(),
+      }));
     }
   }, [id]);
+
+  const recalculateTotals = (items: InvoiceItem[], taxes: InvoiceTax[]) => {
+    const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
+    const subtotal = items.reduce((sum, item) => sum + item.finalAmount, 0);
+    
+    const updatedTaxes = taxes.map(tax => ({
+      ...tax,
+      amount: (subtotal * tax.percent) / 100,
+    }));
+    
+    const taxAmount = updatedTaxes.reduce((sum, tax) => sum + tax.amount, 0);
+    const totalBeforeRound = subtotal + taxAmount;
+    const roundOff = Math.round(totalBeforeRound) - totalBeforeRound;
+    const total = Math.round(totalBeforeRound);
+    const taxPercent = taxes.reduce((sum, tax) => sum + tax.percent, 0);
+    
+    return { totalQty, subtotal, taxes: updatedTaxes, taxAmount, roundOff, total, taxPercent };
+  };
 
   const calculateItemTotal = (item: Partial<InvoiceItem>) => {
     const amount = (item.rate || 0) * (item.quantity || 0);
@@ -72,7 +125,9 @@ export default function InvoiceForm() {
       discountPer: 'item',
       finalAmount: 0,
     };
-    setInvoice({ ...invoice, items: [...invoice.items, newItem] });
+    const newItems = [...invoice.items, newItem];
+    const totals = recalculateTotals(newItems, invoice.taxes);
+    setInvoice({ ...invoice, items: newItems, ...totals });
   };
 
   const updateItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
@@ -82,22 +137,16 @@ export default function InvoiceForm() {
     newItems[index].amount = newItems[index].rate * newItems[index].quantity;
     newItems[index].finalAmount = calculateItemTotal(newItems[index]);
     
-    const subtotal = newItems.reduce((sum, item) => sum + item.finalAmount, 0);
-    const taxAmount = (subtotal * invoice.taxPercent) / 100;
-    const total = subtotal + taxAmount;
-    
-    setInvoice({ ...invoice, items: newItems, subtotal, taxAmount, total });
+    const totals = recalculateTotals(newItems, invoice.taxes);
+    setInvoice({ ...invoice, items: newItems, ...totals });
   };
 
   const removeItem = (index: number) => {
     const newItems = invoice.items.filter((_, i) => i !== index);
     newItems.forEach((item, i) => item.slNo = i + 1);
     
-    const subtotal = newItems.reduce((sum, item) => sum + item.finalAmount, 0);
-    const taxAmount = (subtotal * invoice.taxPercent) / 100;
-    const total = subtotal + taxAmount;
-    
-    setInvoice({ ...invoice, items: newItems, subtotal, taxAmount, total });
+    const totals = recalculateTotals(newItems, invoice.taxes);
+    setInvoice({ ...invoice, items: newItems, ...totals });
   };
 
   const selectProduct = (index: number, productId: string) => {
@@ -114,11 +163,8 @@ export default function InvoiceForm() {
       newItems[index].amount = newItems[index].rate * newItems[index].quantity;
       newItems[index].finalAmount = calculateItemTotal(newItems[index]);
       
-      const subtotal = newItems.reduce((sum, item) => sum + item.finalAmount, 0);
-      const taxAmount = (subtotal * invoice.taxPercent) / 100;
-      const total = subtotal + taxAmount;
-      
-      setInvoice({ ...invoice, items: newItems, subtotal, taxAmount, total });
+      const totals = recalculateTotals(newItems, invoice.taxes);
+      setInvoice({ ...invoice, items: newItems, ...totals });
     }
   };
 
@@ -134,6 +180,37 @@ export default function InvoiceForm() {
         customerMobile: customer.mobile || '',
       });
     }
+  };
+
+  const selectCompany = (companyId: string) => {
+    const company = companies.find(c => c.id === companyId);
+    if (company) {
+      setSelectedCompany(company);
+      setInvoice({ ...invoice, companyId: company.id });
+    }
+  };
+
+  const updateTax = (index: number, field: 'name' | 'percent', value: string | number) => {
+    const newTaxes = [...invoice.taxes];
+    if (field === 'name') {
+      newTaxes[index] = { ...newTaxes[index], name: value as string };
+    } else {
+      newTaxes[index] = { ...newTaxes[index], percent: value as number };
+    }
+    const totals = recalculateTotals(invoice.items, newTaxes);
+    setInvoice({ ...invoice, ...totals });
+  };
+
+  const addTax = () => {
+    const newTaxes = [...invoice.taxes, { name: 'Tax', percent: 0, amount: 0 }];
+    const totals = recalculateTotals(invoice.items, newTaxes);
+    setInvoice({ ...invoice, ...totals });
+  };
+
+  const removeTax = (index: number) => {
+    const newTaxes = invoice.taxes.filter((_, i) => i !== index);
+    const totals = recalculateTotals(invoice.items, newTaxes);
+    setInvoice({ ...invoice, ...totals });
   };
 
   const handleSave = (status: Invoice['status'] = 'draft') => {
@@ -176,13 +253,29 @@ export default function InvoiceForm() {
             <CardTitle>Invoice Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
+              <div>
+                <Label>Select Company</Label>
+                <Select value={invoice.companyId || ''} onValueChange={selectCompany}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label htmlFor="invoiceNumber">Invoice Number</Label>
                 <Input
                   id="invoiceNumber"
                   value={invoice.invoiceNumber}
                   onChange={(e) => setInvoice({ ...invoice, invoiceNumber: e.target.value })}
+                  placeholder="Enter or auto-generated"
                 />
               </div>
               <div>
@@ -204,14 +297,14 @@ export default function InvoiceForm() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="dispatchedThrough">Dispatched Through</Label>
                 <Input
                   id="dispatchedThrough"
                   value={invoice.dispatchedThrough || ''}
                   onChange={(e) => setInvoice({ ...invoice, dispatchedThrough: e.target.value })}
-                  placeholder="e.g., By Road, By Air, Courier"
+                  placeholder="e.g., By Road, By Air"
                 />
               </div>
               <div>
@@ -221,6 +314,24 @@ export default function InvoiceForm() {
                   value={invoice.destination || ''}
                   onChange={(e) => setInvoice({ ...invoice, destination: e.target.value })}
                   placeholder="Delivery destination"
+                />
+              </div>
+              <div>
+                <Label htmlFor="termsOfDelivery">Terms of Delivery</Label>
+                <Input
+                  id="termsOfDelivery"
+                  value={invoice.termsOfDelivery || ''}
+                  onChange={(e) => setInvoice({ ...invoice, termsOfDelivery: e.target.value })}
+                  placeholder="e.g., FOB, CIF"
+                />
+              </div>
+              <div>
+                <Label htmlFor="motorVehicleNo">Motor Vehicle No.</Label>
+                <Input
+                  id="motorVehicleNo"
+                  value={invoice.motorVehicleNo || ''}
+                  onChange={(e) => setInvoice({ ...invoice, motorVehicleNo: e.target.value })}
+                  placeholder="Vehicle number"
                 />
               </div>
             </div>
@@ -319,13 +430,13 @@ export default function InvoiceForm() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">Sl.No</TableHead>
-                  <TableHead className="w-48">Product</TableHead>
+                  <TableHead className="w-40">Product</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>HSN/SAC</TableHead>
                   <TableHead className="w-20">Qty</TableHead>
                   <TableHead className="w-20">Unit</TableHead>
                   <TableHead className="w-24">Rate</TableHead>
-                  <TableHead className="w-20">Disc%</TableHead>
+                  <TableHead className="w-16">Disc%</TableHead>
                   <TableHead className="w-24">Amount</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
@@ -352,7 +463,7 @@ export default function InvoiceForm() {
                       <Input
                         value={item.description}
                         onChange={(e) => updateItem(index, 'description', e.target.value)}
-                        placeholder="Type or select product"
+                        placeholder="Type or select"
                       />
                     </TableCell>
                     <TableCell>
@@ -401,27 +512,52 @@ export default function InvoiceForm() {
             </Table>
 
             <div className="mt-6 flex justify-end">
-              <div className="w-64 space-y-2">
+              <div className="w-80 space-y-2">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Total Qty:</span>
+                  <span>{invoice.totalQty} Nos.</span>
+                </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal:</span>
                   <span>₹{invoice.subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between items-center text-muted-foreground">
-                  <span>Tax:</span>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      className="w-20 h-8"
-                      value={invoice.taxPercent}
-                      onChange={(e) => {
-                        const taxPercent = parseFloat(e.target.value) || 0;
-                        const taxAmount = (invoice.subtotal * taxPercent) / 100;
-                        const total = invoice.subtotal + taxAmount;
-                        setInvoice({ ...invoice, taxPercent, taxAmount, total });
-                      }}
-                    />
-                    <span>% = ₹{invoice.taxAmount.toFixed(2)}</span>
+                
+                {/* Multiple Taxes */}
+                <div className="border-t pt-2 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Taxes</span>
+                    <Button variant="outline" size="sm" onClick={addTax}>
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Tax
+                    </Button>
                   </div>
+                  {invoice.taxes.map((tax, index) => (
+                    <div key={index} className="flex items-center gap-2 text-muted-foreground">
+                      <Input
+                        className="w-24 h-8"
+                        value={tax.name}
+                        onChange={(e) => updateTax(index, 'name', e.target.value)}
+                        placeholder="Tax name"
+                      />
+                      <Input
+                        type="number"
+                        className="w-16 h-8"
+                        value={tax.percent}
+                        onChange={(e) => updateTax(index, 'percent', parseFloat(e.target.value) || 0)}
+                      />
+                      <span>% = ₹{tax.amount.toFixed(2)}</span>
+                      {invoice.taxes.length > 1 && (
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeTax(index)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Round Off:</span>
+                  <span>{invoice.roundOff >= 0 ? '+' : ''}₹{invoice.roundOff.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold text-foreground border-t pt-2">
                   <span>Total:</span>
