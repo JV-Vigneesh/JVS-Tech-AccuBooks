@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   VOUCHERS: 'accounting_vouchers',
   INVENTORY: 'accounting_inventory',
   COMPANY: 'accounting_company',
+  COMPANIES: 'accounting_companies',
   CUSTOMERS: 'accounting_customers',
 };
 
@@ -40,6 +41,21 @@ export const deleteProduct = (id: string): void => {
 
 // Invoices
 export const getInvoices = (): Invoice[] => getItems<Invoice>(STORAGE_KEYS.INVOICES);
+
+export const getNextInvoiceNumber = (): string => {
+  const invoices = getInvoices();
+  if (invoices.length === 0) return '1';
+  
+  const numbers = invoices
+    .map(inv => {
+      const num = parseInt(inv.invoiceNumber.replace(/\D/g, ''), 10);
+      return isNaN(num) ? 0 : num;
+    })
+    .filter(n => n > 0);
+  
+  const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+  return String(maxNumber + 1);
+};
 
 export const saveInvoice = (invoice: Invoice): void => {
   const invoices = getInvoices();
@@ -94,7 +110,26 @@ export const saveInventoryTransaction = (transaction: InventoryTransaction): voi
   }
 };
 
-// Company
+// Multiple Companies
+export const getCompanies = (): Company[] => getItems<Company>(STORAGE_KEYS.COMPANIES);
+
+export const saveCompanyToList = (company: Company): void => {
+  const companies = getCompanies();
+  const index = companies.findIndex(c => c.id === company.id);
+  if (index >= 0) {
+    companies[index] = company;
+  } else {
+    companies.push(company);
+  }
+  saveItems(STORAGE_KEYS.COMPANIES, companies);
+};
+
+export const deleteCompany = (id: string): void => {
+  const companies = getCompanies().filter(c => c.id !== id);
+  saveItems(STORAGE_KEYS.COMPANIES, companies);
+};
+
+// Legacy single company support (for backward compatibility)
 export const getCompany = (): Company | null => {
   const data = localStorage.getItem(STORAGE_KEYS.COMPANY);
   return data ? JSON.parse(data) : null;
@@ -102,6 +137,8 @@ export const getCompany = (): Company | null => {
 
 export const saveCompany = (company: Company): void => {
   localStorage.setItem(STORAGE_KEYS.COMPANY, JSON.stringify(company));
+  // Also save to companies list
+  saveCompanyToList(company);
 };
 
 // Customers

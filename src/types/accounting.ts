@@ -22,9 +22,16 @@ export interface InvoiceItem {
   finalAmount: number;
 }
 
+export interface InvoiceTax {
+  name: string;
+  percent: number;
+  amount: number;
+}
+
 export interface Invoice {
   id: string;
   invoiceNumber: string;
+  companyId?: string;
   customerName: string;
   customerAddress: string;
   customerGSTIN?: string;
@@ -35,10 +42,15 @@ export interface Invoice {
   dueDate?: string;
   dispatchedThrough?: string;
   destination?: string;
+  termsOfDelivery?: string;
+  motorVehicleNo?: string;
   items: InvoiceItem[];
+  totalQty: number;
   subtotal: number;
+  taxes: InvoiceTax[];
   taxPercent: number;
   taxAmount: number;
+  roundOff: number;
   total: number;
   declaration?: string;
   status: 'draft' | 'sent' | 'paid' | 'overdue';

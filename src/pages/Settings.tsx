@@ -4,42 +4,76 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { getCompany, saveCompany } from '@/lib/storage';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { getCompanies, saveCompanyToList, deleteCompany } from '@/lib/storage';
 import { Company } from '@/types/accounting';
 import { useToast } from '@/hooks/use-toast';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
+
+const emptyCompany: Company = {
+  id: '',
+  name: '',
+  address: '',
+  mobile: '',
+  email: '',
+  gstin: '',
+  taxNumber: '',
+  bankName: '',
+  bankAccount: '',
+  bankIfsc: '',
+  logo: '',
+  stamp: '',
+  signature: '',
+  createdAt: new Date().toISOString(),
+};
 
 export default function Settings() {
   const { toast } = useToast();
-  const [company, setCompany] = useState<Company>({
-    id: '1',
-    name: '',
-    address: '',
-    mobile: '',
-    email: '',
-    gstin: '',
-    taxNumber: '',
-    bankName: '',
-    bankAccount: '',
-    bankIfsc: '',
-    logo: '',
-    stamp: '',
-    signature: '',
-    createdAt: new Date().toISOString(),
-  });
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [company, setCompany] = useState<Company>({ ...emptyCompany, id: crypto.randomUUID() });
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    const savedCompany = getCompany();
-    if (savedCompany) {
-      setCompany(savedCompany);
-    }
+    setCompanies(getCompanies());
   }, []);
 
   const handleSave = () => {
-    saveCompany(company);
+    if (!company.name) {
+      toast({
+        title: 'Error',
+        description: 'Company name is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    saveCompanyToList(company);
+    setCompanies(getCompanies());
+    setCompany({ ...emptyCompany, id: crypto.randomUUID() });
+    setIsEditing(false);
     toast({
       title: 'Success',
-      description: 'Company details saved successfully',
+      description: `Company ${isEditing ? 'updated' : 'added'} successfully`,
     });
+  };
+
+  const handleEdit = (comp: Company) => {
+    setCompany(comp);
+    setIsEditing(true);
+  };
+
+  const handleDelete = (id: string) => {
+    deleteCompany(id);
+    setCompanies(getCompanies());
+    toast({
+      title: 'Success',
+      description: 'Company deleted successfully',
+    });
+  };
+
+  const handleCancel = () => {
+    setCompany({ ...emptyCompany, id: crypto.randomUUID() });
+    setIsEditing(false);
   };
 
   const handleImageUpload = (field: 'logo' | 'stamp' | 'signature') => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,18 +91,65 @@ export default function Settings() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Company Settings</h1>
-        <p className="text-muted-foreground">Manage your company details and branding</p>
+        <p className="text-muted-foreground">Manage your companies and branding</p>
       </div>
 
+      {/* Companies List */}
+      {companies.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Companies</CardTitle>
+            <CardDescription>Select a company when creating invoices</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>GSTIN</TableHead>
+                  <TableHead>Mobile</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead className="w-24">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {companies.map((comp) => (
+                  <TableRow key={comp.id}>
+                    <TableCell className="font-medium">{comp.name}</TableCell>
+                    <TableCell>{comp.gstin || '-'}</TableCell>
+                    <TableCell>{comp.mobile || '-'}</TableCell>
+                    <TableCell>{comp.email || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(comp)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(comp.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add/Edit Company Form */}
       <Card>
         <CardHeader>
-          <CardTitle>Company Information</CardTitle>
-          <CardDescription>Basic details about your company</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            {isEditing ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+            {isEditing ? 'Edit Company' : 'Add New Company'}
+          </CardTitle>
+          <CardDescription>Enter company details to use in invoices</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Company Name</Label>
+              <Label htmlFor="name">Company Name *</Label>
               <Input
                 id="name"
                 value={company.name}
@@ -159,7 +240,7 @@ export default function Settings() {
       <Card>
         <CardHeader>
           <CardTitle>Branding</CardTitle>
-          <CardDescription>Upload your company logo, stamp, and signature</CardDescription>
+          <CardDescription>Upload company logo, stamp, and signature</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
@@ -203,9 +284,14 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {isEditing && (
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+        )}
         <Button onClick={handleSave} size="lg">
-          Save Changes
+          {isEditing ? 'Update Company' : 'Add Company'}
         </Button>
       </div>
     </div>
