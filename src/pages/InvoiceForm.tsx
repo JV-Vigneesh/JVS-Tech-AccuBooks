@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { getInvoices, saveInvoice, getProducts } from '@/lib/storage';
-import { Invoice, InvoiceItem, Product } from '@/types/accounting';
+import { getInvoices, saveInvoice, getProducts, getCustomers } from '@/lib/storage';
+import { Invoice, InvoiceItem, Product, Customer } from '@/types/accounting';
 import { Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,25 +17,33 @@ export default function InvoiceForm() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [invoice, setInvoice] = useState<Invoice>({
     id: crypto.randomUUID(),
     invoiceNumber: `INV-${Date.now()}`,
     customerName: '',
     customerAddress: '',
     customerGSTIN: '',
+    customerEmail: '',
+    customerMobile: '',
+    customerState: '',
     date: new Date().toISOString().split('T')[0],
-    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    dueDate: '',
+    dispatchedThrough: '',
+    destination: '',
     items: [],
     subtotal: 0,
     taxPercent: 18,
     taxAmount: 0,
     total: 0,
+    declaration: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.',
     status: 'draft',
     createdAt: new Date().toISOString(),
   });
 
   useEffect(() => {
     setProducts(getProducts());
+    setCustomers(getCustomers());
     if (id) {
       const invoices = getInvoices();
       const existingInvoice = invoices.find(inv => inv.id === id);
@@ -56,7 +65,7 @@ export default function InvoiceForm() {
       description: '',
       hsnSac: '',
       quantity: 1,
-      unit: 'PCS',
+      unit: 'Nos.',
       rate: 0,
       amount: 0,
       discountPercent: 0,
@@ -66,11 +75,10 @@ export default function InvoiceForm() {
     setInvoice({ ...invoice, items: [...invoice.items, newItem] });
   };
 
-  const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
+  const updateItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
     const newItems = [...invoice.items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    // Recalculate amounts
     newItems[index].amount = newItems[index].rate * newItems[index].quantity;
     newItems[index].finalAmount = calculateItemTotal(newItems[index]);
     
@@ -95,10 +103,36 @@ export default function InvoiceForm() {
   const selectProduct = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product) {
-      updateItem(index, 'description', product.name);
-      updateItem(index, 'hsnSac', product.hsnSac);
-      updateItem(index, 'rate', product.rate);
-      updateItem(index, 'unit', product.unit);
+      const newItems = [...invoice.items];
+      newItems[index] = {
+        ...newItems[index],
+        description: product.name,
+        hsnSac: product.hsnSac,
+        rate: product.rate,
+        unit: product.unit || 'Nos.',
+      };
+      newItems[index].amount = newItems[index].rate * newItems[index].quantity;
+      newItems[index].finalAmount = calculateItemTotal(newItems[index]);
+      
+      const subtotal = newItems.reduce((sum, item) => sum + item.finalAmount, 0);
+      const taxAmount = (subtotal * invoice.taxPercent) / 100;
+      const total = subtotal + taxAmount;
+      
+      setInvoice({ ...invoice, items: newItems, subtotal, taxAmount, total });
+    }
+  };
+
+  const selectCustomer = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    if (customer) {
+      setInvoice({
+        ...invoice,
+        customerName: customer.name,
+        customerAddress: customer.address || '',
+        customerGSTIN: customer.gstin || '',
+        customerEmail: customer.email || '',
+        customerMobile: customer.mobile || '',
+      });
     }
   };
 
@@ -142,7 +176,7 @@ export default function InvoiceForm() {
             <CardTitle>Invoice Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="invoiceNumber">Invoice Number</Label>
                 <Input
@@ -160,39 +194,110 @@ export default function InvoiceForm() {
                   onChange={(e) => setInvoice({ ...invoice, date: e.target.value })}
                 />
               </div>
-            </div>
-            <div>
-              <Label htmlFor="customerName">Customer Name</Label>
-              <Input
-                id="customerName"
-                value={invoice.customerName}
-                onChange={(e) => setInvoice({ ...invoice, customerName: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="customerAddress">Customer Address</Label>
-              <Input
-                id="customerAddress"
-                value={invoice.customerAddress}
-                onChange={(e) => setInvoice({ ...invoice, customerAddress: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="customerGSTIN">Customer GSTIN (Optional)</Label>
-                <Input
-                  id="customerGSTIN"
-                  value={invoice.customerGSTIN}
-                  onChange={(e) => setInvoice({ ...invoice, customerGSTIN: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="dueDate">Due Date</Label>
+                <Label htmlFor="dueDate">Due Date (Optional)</Label>
                 <Input
                   id="dueDate"
                   type="date"
-                  value={invoice.dueDate}
+                  value={invoice.dueDate || ''}
                   onChange={(e) => setInvoice({ ...invoice, dueDate: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="dispatchedThrough">Dispatched Through</Label>
+                <Input
+                  id="dispatchedThrough"
+                  value={invoice.dispatchedThrough || ''}
+                  onChange={(e) => setInvoice({ ...invoice, dispatchedThrough: e.target.value })}
+                  placeholder="e.g., By Road, By Air, Courier"
+                />
+              </div>
+              <div>
+                <Label htmlFor="destination">Destination</Label>
+                <Input
+                  id="destination"
+                  value={invoice.destination || ''}
+                  onChange={(e) => setInvoice({ ...invoice, destination: e.target.value })}
+                  placeholder="Delivery destination"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Customer Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Select from Saved Customers</Label>
+              <Select onValueChange={selectCustomer}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a customer or enter manually below" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="customerName">Customer Name *</Label>
+                <Input
+                  id="customerName"
+                  value={invoice.customerName}
+                  onChange={(e) => setInvoice({ ...invoice, customerName: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="customerGSTIN">Customer GSTIN</Label>
+                <Input
+                  id="customerGSTIN"
+                  value={invoice.customerGSTIN || ''}
+                  onChange={(e) => setInvoice({ ...invoice, customerGSTIN: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="customerAddress">Customer Address</Label>
+              <Textarea
+                id="customerAddress"
+                value={invoice.customerAddress}
+                onChange={(e) => setInvoice({ ...invoice, customerAddress: e.target.value })}
+                rows={2}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="customerEmail">Email</Label>
+                <Input
+                  id="customerEmail"
+                  type="email"
+                  value={invoice.customerEmail || ''}
+                  onChange={(e) => setInvoice({ ...invoice, customerEmail: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="customerMobile">Mobile</Label>
+                <Input
+                  id="customerMobile"
+                  value={invoice.customerMobile || ''}
+                  onChange={(e) => setInvoice({ ...invoice, customerMobile: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="customerState">State</Label>
+                <Input
+                  id="customerState"
+                  value={invoice.customerState || ''}
+                  onChange={(e) => setInvoice({ ...invoice, customerState: e.target.value })}
                 />
               </div>
             </div>
@@ -214,6 +319,7 @@ export default function InvoiceForm() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">Sl.No</TableHead>
+                  <TableHead className="w-48">Product</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>HSN/SAC</TableHead>
                   <TableHead className="w-20">Qty</TableHead>
@@ -231,7 +337,7 @@ export default function InvoiceForm() {
                     <TableCell>
                       <Select onValueChange={(value) => selectProduct(index, value)}>
                         <SelectTrigger>
-                          <SelectValue placeholder={item.description || "Select product"} />
+                          <SelectValue placeholder="Select" />
                         </SelectTrigger>
                         <SelectContent>
                           {products.map((product) => (
@@ -244,6 +350,13 @@ export default function InvoiceForm() {
                     </TableCell>
                     <TableCell>
                       <Input
+                        value={item.description}
+                        onChange={(e) => updateItem(index, 'description', e.target.value)}
+                        placeholder="Type or select product"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
                         value={item.hsnSac}
                         onChange={(e) => updateItem(index, 'hsnSac', e.target.value)}
                       />
@@ -252,7 +365,7 @@ export default function InvoiceForm() {
                       <Input
                         type="number"
                         value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value))}
+                        onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
                       />
                     </TableCell>
                     <TableCell>
@@ -266,17 +379,17 @@ export default function InvoiceForm() {
                         type="number"
                         step="0.01"
                         value={item.rate}
-                        onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value))}
+                        onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
                         value={item.discountPercent}
-                        onChange={(e) => updateItem(index, 'discountPercent', parseFloat(e.target.value))}
+                        onChange={(e) => updateItem(index, 'discountPercent', parseFloat(e.target.value) || 0)}
                       />
                     </TableCell>
-                    <TableCell>₹{item.finalAmount.toFixed(2)}</TableCell>
+                    <TableCell className="text-foreground">₹{item.finalAmount.toFixed(2)}</TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => removeItem(index)}>
                         <Trash2 className="h-4 w-4" />
@@ -301,7 +414,7 @@ export default function InvoiceForm() {
                       className="w-20 h-8"
                       value={invoice.taxPercent}
                       onChange={(e) => {
-                        const taxPercent = parseFloat(e.target.value);
+                        const taxPercent = parseFloat(e.target.value) || 0;
                         const taxAmount = (invoice.subtotal * taxPercent) / 100;
                         const total = invoice.subtotal + taxAmount;
                         setInvoice({ ...invoice, taxPercent, taxAmount, total });
@@ -315,6 +428,23 @@ export default function InvoiceForm() {
                   <span>₹{invoice.total.toFixed(2)}</span>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Additional Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div>
+              <Label htmlFor="declaration">Declaration</Label>
+              <Textarea
+                id="declaration"
+                value={invoice.declaration || ''}
+                onChange={(e) => setInvoice({ ...invoice, declaration: e.target.value })}
+                rows={3}
+              />
             </div>
           </CardContent>
         </Card>
