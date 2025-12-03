@@ -77,7 +77,7 @@ export default function Invoices() {
                   <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                   <TableCell>{invoice.customerName}</TableCell>
                   <TableCell>{format(new Date(invoice.date), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell>{format(new Date(invoice.dueDate), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>{invoice.dueDate ? format(new Date(invoice.dueDate), 'dd/MM/yyyy') : '-'}</TableCell>
                   <TableCell>₹{invoice.total.toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(invoice.status)}>
