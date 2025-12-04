@@ -12,6 +12,9 @@ export interface Product {
 export interface InvoiceItem {
   slNo: number;
   description: string;
+  batchNumber?: string;
+  mfgDate?: string; // Month and Year e.g., "01/2024"
+  cases?: number; // No of cases/box/package
   hsnSac: string;
   quantity: number;
   unit: string;

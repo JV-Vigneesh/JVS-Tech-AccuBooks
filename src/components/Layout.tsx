@@ -1,8 +1,15 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, FileText, Package, Warehouse, Receipt, Users, Settings, Moon, Sun } from 'lucide-react';
+import { LayoutDashboard, FileText, Package, Warehouse, Receipt, Users, Settings, Moon, Sun, Building2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
+import { useCompany } from '@/contexts/CompanyContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -17,6 +24,7 @@ const navigation = [
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
+  const { selectedCompany, companies, setSelectedCompany } = useCompany();
 
   return (
     <div className="min-h-screen bg-background">
@@ -27,6 +35,41 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <h1 className="text-2xl font-bold text-foreground">AccounTally</h1>
             <p className="text-sm text-muted-foreground">Accounting Software</p>
           </div>
+          
+          {/* Company Selector */}
+          <div className="px-3 pb-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  <div className="flex items-center gap-2 truncate">
+                    <Building2 className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{selectedCompany?.name || 'Select Company'}</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                {companies.length === 0 ? (
+                  <DropdownMenuItem disabled>
+                    No companies. Add in Settings.
+                  </DropdownMenuItem>
+                ) : (
+                  companies.map((company) => (
+                    <DropdownMenuItem
+                      key={company.id}
+                      onClick={() => setSelectedCompany(company)}
+                      className={cn(
+                        selectedCompany?.id === company.id && 'bg-accent'
+                      )}
+                    >
+                      {company.name}
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
           <nav className="space-y-1 px-3 flex-1">
             {navigation.map((item) => {
               const Icon = item.icon;

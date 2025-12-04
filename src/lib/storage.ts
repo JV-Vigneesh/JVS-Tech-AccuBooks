@@ -42,8 +42,12 @@ export const deleteProduct = (id: string): void => {
 // Invoices
 export const getInvoices = (): Invoice[] => getItems<Invoice>(STORAGE_KEYS.INVOICES);
 
-export const getNextInvoiceNumber = (): string => {
-  const invoices = getInvoices();
+export const getInvoicesByCompany = (companyId: string): Invoice[] => {
+  return getInvoices().filter(inv => inv.companyId === companyId);
+};
+
+export const getNextInvoiceNumber = (companyId?: string): string => {
+  const invoices = companyId ? getInvoicesByCompany(companyId) : getInvoices();
   if (invoices.length === 0) return '1';
   
   const numbers = invoices
