@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { getCompanies, saveCompanyToList, deleteCompany } from '@/lib/storage';
 import { Company } from '@/types/accounting';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/contexts/CompanyContext';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 const emptyCompany: Company = {
@@ -29,6 +30,7 @@ const emptyCompany: Company = {
 
 export default function Settings() {
   const { toast } = useToast();
+  const { refreshCompanies } = useCompany();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [company, setCompany] = useState<Company>({ ...emptyCompany, id: crypto.randomUUID() });
   const [isEditing, setIsEditing] = useState(false);
@@ -49,6 +51,7 @@ export default function Settings() {
     
     saveCompanyToList(company);
     setCompanies(getCompanies());
+    refreshCompanies(); // Update sidebar
     setCompany({ ...emptyCompany, id: crypto.randomUUID() });
     setIsEditing(false);
     toast({
@@ -65,6 +68,7 @@ export default function Settings() {
   const handleDelete = (id: string) => {
     deleteCompany(id);
     setCompanies(getCompanies());
+    refreshCompanies(); // Update sidebar
     toast({
       title: 'Success',
       description: 'Company deleted successfully',
