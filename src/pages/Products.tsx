@@ -5,15 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { getProducts, saveProduct, deleteProduct } from '@/lib/storage';
-import { Product } from '@/types/accounting';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Product, ProductBatch } from '@/types/accounting';
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [batches, setBatches] = useState<ProductBatch[]>([]);
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   const loadProducts = () => {
@@ -24,10 +28,48 @@ export default function Products() {
     loadProducts();
   }, []);
 
+  const handleOpenDialog = (product?: Product) => {
+    if (product) {
+      setEditingProduct(product);
+      setBatches(product.batches || []);
+    } else {
+      setEditingProduct(null);
+      setBatches([]);
+    }
+    setIsDialogOpen(true);
+  };
+
+  const addBatch = () => {
+    setBatches([
+      ...batches,
+      {
+        id: crypto.randomUUID(),
+        batchNumber: '',
+        mfgDate: '',
+        quantity: 0,
+      },
+    ]);
+  };
+
+  const updateBatch = (index: number, field: keyof ProductBatch, value: string | number) => {
+    const newBatches = [...batches];
+    newBatches[index] = { ...newBatches[index], [field]: value };
+    setBatches(newBatches);
+  };
+
+  const removeBatch = (index: number) => {
+    setBatches(batches.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
+    // Calculate total stock from batches
+    const batchStock = batches.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0);
+    const manualStock = parseFloat(formData.get('stock') as string) || 0;
+    const totalStock = batches.length > 0 ? batchStock : manualStock;
+
     const product: Product = {
       id: editingProduct?.id || crypto.randomUUID(),
       name: formData.get('name') as string,
@@ -35,7 +77,8 @@ export default function Products() {
       hsnSac: formData.get('hsnSac') as string,
       rate: parseFloat(formData.get('rate') as string),
       unit: formData.get('unit') as string,
-      stock: parseFloat(formData.get('stock') as string),
+      stock: totalStock,
+      batches: batches.filter(b => b.batchNumber), // Only save batches with batch numbers
       createdAt: editingProduct?.createdAt || new Date().toISOString(),
     };
 
@@ -43,6 +86,7 @@ export default function Products() {
     loadProducts();
     setIsDialogOpen(false);
     setEditingProduct(null);
+    setBatches([]);
     toast({
       title: 'Success',
       description: `Product ${editingProduct ? 'updated' : 'created'} successfully`,
@@ -60,9 +104,14 @@ export default function Products() {
     }
   };
 
-  const handleEdit = (product: Product) => {
-    setEditingProduct(product);
-    setIsDialogOpen(true);
+  const toggleExpand = (productId: string) => {
+    const newExpanded = new Set(expandedProducts);
+    if (newExpanded.has(productId)) {
+      newExpanded.delete(productId);
+    } else {
+      newExpanded.add(productId);
+    }
+    setExpandedProducts(newExpanded);
   };
 
   return (
@@ -71,12 +120,12 @@ export default function Products() {
         <h1 className="text-3xl font-bold text-foreground">Products</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingProduct(null)}>
+            <Button onClick={() => handleOpenDialog()}>
               <Plus className="h-4 w-4 mr-2" />
               Add Product
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingProduct ? 'Edit' : 'Add'} Product</DialogTitle>
             </DialogHeader>
@@ -105,10 +154,66 @@ export default function Products() {
                   <Input id="rate" name="rate" type="number" step="0.01" defaultValue={editingProduct?.rate} required />
                 </div>
                 <div>
-                  <Label htmlFor="stock">Stock</Label>
-                  <Input id="stock" name="stock" type="number" defaultValue={editingProduct?.stock} required />
+                  <Label htmlFor="stock">Stock (if no batches)</Label>
+                  <Input id="stock" name="stock" type="number" defaultValue={editingProduct?.stock} />
                 </div>
               </div>
+
+              {/* Batch Tracking Section */}
+              <div className="border border-border rounded-lg p-4">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <Label className="text-base font-semibold">Batch Tracking</Label>
+                    <p className="text-sm text-muted-foreground">Add batch numbers and manufacturing dates</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addBatch}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Batch
+                  </Button>
+                </div>
+                
+                {batches.length > 0 && (
+                  <div className="space-y-3">
+                    {batches.map((batch, index) => (
+                      <div key={batch.id} className="grid grid-cols-4 gap-2 items-end">
+                        <div>
+                          <Label className="text-xs">Batch Number</Label>
+                          <Input
+                            value={batch.batchNumber}
+                            onChange={(e) => updateBatch(index, 'batchNumber', e.target.value)}
+                            placeholder="e.g., B001"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Mfg Date (MM/YYYY)</Label>
+                          <Input
+                            value={batch.mfgDate}
+                            onChange={(e) => updateBatch(index, 'mfgDate', e.target.value)}
+                            placeholder="01/2024"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Quantity</Label>
+                          <Input
+                            type="number"
+                            value={batch.quantity}
+                            onChange={(e) => updateBatch(index, 'quantity', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeBatch(index)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <Button type="submit" className="w-full">
                 {editingProduct ? 'Update' : 'Create'} Product
               </Button>
@@ -125,33 +230,86 @@ export default function Products() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"></TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>HSN/SAC</TableHead>
                 <TableHead>Rate</TableHead>
                 <TableHead>Unit</TableHead>
                 <TableHead>Stock</TableHead>
+                <TableHead>Batches</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>{product.description}</TableCell>
-                  <TableCell>{product.hsnSac}</TableCell>
-                  <TableCell>₹{product.rate.toFixed(2)}</TableCell>
-                  <TableCell>{product.unit}</TableCell>
-                  <TableCell>{product.stock}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                <>
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      {product.batches && product.batches.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => toggleExpand(product.id)}
+                        >
+                          {expandedProducts.has(product.id) ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell>{product.description}</TableCell>
+                    <TableCell>{product.hsnSac}</TableCell>
+                    <TableCell>₹{product.rate.toFixed(2)}</TableCell>
+                    <TableCell>{product.unit}</TableCell>
+                    <TableCell>{product.stock}</TableCell>
+                    <TableCell>
+                      {product.batches && product.batches.length > 0 ? (
+                        <Badge variant="secondary">{product.batches.length} batches</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(product)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  {/* Expanded batch details */}
+                  {expandedProducts.has(product.id) && product.batches && product.batches.length > 0 && (
+                    <TableRow>
+                      <TableCell colSpan={9} className="bg-muted/30 py-2">
+                        <div className="pl-10">
+                          <p className="text-sm font-medium mb-2 text-muted-foreground">Batch Details:</p>
+                          <div className="grid grid-cols-3 gap-4">
+                            {product.batches.map((batch) => (
+                              <div
+                                key={batch.id}
+                                className="flex items-center gap-2 bg-background rounded p-2 border border-border"
+                              >
+                                <Package className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="text-sm font-medium">{batch.batchNumber}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Mfg: {batch.mfgDate} | Qty: {batch.quantity}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
               ))}
             </TableBody>
           </Table>

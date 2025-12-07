@@ -1,3 +1,11 @@
+export interface ProductBatch {
+  id: string;
+  batchNumber: string;
+  mfgDate: string; // Month and Year e.g., "01/2024"
+  quantity: number;
+  expiryDate?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -6,12 +14,14 @@ export interface Product {
   rate: number;
   unit: string;
   stock: number;
+  batches?: ProductBatch[];
   createdAt: string;
 }
 
 export interface InvoiceItem {
   slNo: number;
   description: string;
+  productId?: string;
   batchNumber?: string;
   mfgDate?: string; // Month and Year e.g., "01/2024"
   cases?: number; // No of cases/box/package
@@ -60,9 +70,33 @@ export interface Invoice {
   createdAt: string;
 }
 
+export interface DeliveryChallan {
+  id: string;
+  challanNumber: string;
+  companyId?: string;
+  customerName: string;
+  customerAddress: string;
+  customerGSTIN?: string;
+  customerEmail?: string;
+  customerMobile?: string;
+  customerState?: string;
+  date: string;
+  dispatchedThrough?: string;
+  destination?: string;
+  termsOfDelivery?: string;
+  motorVehicleNo?: string;
+  reasonForTransfer: 'supply' | 'job_work' | 'exhibition' | 'personal' | 'other';
+  items: InvoiceItem[];
+  totalQty: number;
+  remarks?: string;
+  status: 'draft' | 'dispatched' | 'delivered';
+  createdAt: string;
+}
+
 export interface Voucher {
   id: string;
   voucherNumber: string;
+  companyId?: string;
   type: 'payment' | 'receipt' | 'journal' | 'contra';
   date: string;
   amount: number;
@@ -108,5 +142,6 @@ export interface Customer {
   mobile?: string;
   address?: string;
   gstin?: string;
+  state?: string;
   createdAt: string;
 }

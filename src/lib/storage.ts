@@ -1,4 +1,4 @@
-import { Product, Invoice, Voucher, InventoryTransaction, Company, Customer } from '@/types/accounting';
+import { Product, Invoice, Voucher, InventoryTransaction, Company, Customer, DeliveryChallan } from '@/types/accounting';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'accounting_products',
@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   COMPANY: 'accounting_company',
   COMPANIES: 'accounting_companies',
   CUSTOMERS: 'accounting_customers',
+  CHALLANS: 'accounting_challans',
 };
 
 // Generic storage functions
@@ -77,8 +78,50 @@ export const deleteInvoice = (id: string): void => {
   saveItems(STORAGE_KEYS.INVOICES, invoices);
 };
 
+// Delivery Challans
+export const getChallans = (): DeliveryChallan[] => getItems<DeliveryChallan>(STORAGE_KEYS.CHALLANS);
+
+export const getChallansByCompany = (companyId: string): DeliveryChallan[] => {
+  return getChallans().filter(c => c.companyId === companyId);
+};
+
+export const getNextChallanNumber = (companyId?: string): string => {
+  const challans = companyId ? getChallansByCompany(companyId) : getChallans();
+  if (challans.length === 0) return 'DC-1';
+  
+  const numbers = challans
+    .map(c => {
+      const num = parseInt(c.challanNumber.replace(/\D/g, ''), 10);
+      return isNaN(num) ? 0 : num;
+    })
+    .filter(n => n > 0);
+  
+  const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+  return `DC-${maxNumber + 1}`;
+};
+
+export const saveChallan = (challan: DeliveryChallan): void => {
+  const challans = getChallans();
+  const index = challans.findIndex(c => c.id === challan.id);
+  if (index >= 0) {
+    challans[index] = challan;
+  } else {
+    challans.push(challan);
+  }
+  saveItems(STORAGE_KEYS.CHALLANS, challans);
+};
+
+export const deleteChallan = (id: string): void => {
+  const challans = getChallans().filter(c => c.id !== id);
+  saveItems(STORAGE_KEYS.CHALLANS, challans);
+};
+
 // Vouchers
 export const getVouchers = (): Voucher[] => getItems<Voucher>(STORAGE_KEYS.VOUCHERS);
+
+export const getVouchersByCompany = (companyId: string): Voucher[] => {
+  return getVouchers().filter(v => v.companyId === companyId);
+};
 
 export const saveVoucher = (voucher: Voucher): void => {
   const vouchers = getVouchers();

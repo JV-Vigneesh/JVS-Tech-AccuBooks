@@ -10,6 +10,9 @@ import Dashboard from "./pages/Dashboard";
 import Invoices from "./pages/Invoices";
 import InvoiceForm from "./pages/InvoiceForm";
 import InvoiceView from "./pages/InvoiceView";
+import DeliveryChallans from "./pages/DeliveryChallans";
+import ChallanForm from "./pages/ChallanForm";
+import ChallanView from "./pages/ChallanView";
 import Products from "./pages/Products";
 import Inventory from "./pages/Inventory";
 import Vouchers from "./pages/Vouchers";
@@ -34,6 +37,10 @@ const App = () => (
                 <Route path="/invoices/new" element={<InvoiceForm />} />
                 <Route path="/invoices/edit/:id" element={<InvoiceForm />} />
                 <Route path="/invoices/view/:id" element={<InvoiceView />} />
+                <Route path="/challans" element={<DeliveryChallans />} />
+                <Route path="/challans/new" element={<ChallanForm />} />
+                <Route path="/challans/edit/:id" element={<ChallanForm />} />
+                <Route path="/challans/view/:id" element={<ChallanView />} />
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/products" element={<Products />} />
                 <Route path="/inventory" element={<Inventory />} />
