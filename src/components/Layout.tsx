@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, FileText, Package, Warehouse, Receipt, Users, Settings, Moon, Sun, Building2, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, FileText, Package, Warehouse, Receipt, Users, Settings, Moon, Sun, Building2, ChevronDown, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
 import { useCompany } from '@/contexts/CompanyContext';
@@ -14,6 +14,7 @@ import {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Invoices', href: '/invoices', icon: FileText },
+  { name: 'Challans', href: '/challans', icon: Truck },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Products', href: '/products', icon: Package },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
