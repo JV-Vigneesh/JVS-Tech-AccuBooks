@@ -5,12 +5,40 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getProducts, saveProduct, deleteProduct } from '@/lib/storage';
 import { Product, ProductBatch } from '@/types/accounting';
 import { Plus, Edit, Trash2, ChevronDown, ChevronRight, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+
+const UNIT_OPTIONS = [
+  'Nos.',
+  'PCS',
+  'KG',
+  'GM',
+  'LTR',
+  'ML',
+  'MTR',
+  'CM',
+  'BOX',
+  'PKT',
+  'SET',
+  'PAIR',
+  'DOZEN',
+  'ROLL',
+  'BAG',
+  'BTL',
+  'CAN',
+  'CTN',
+];
+
+const getCurrentMfgDate = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  return `${month}/${year}`;
+};
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -18,6 +46,7 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [batches, setBatches] = useState<ProductBatch[]>([]);
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [selectedUnit, setSelectedUnit] = useState('Nos.');
   const { toast } = useToast();
 
   const loadProducts = () => {
@@ -32,9 +61,11 @@ export default function Products() {
     if (product) {
       setEditingProduct(product);
       setBatches(product.batches || []);
+      setSelectedUnit(product.unit || 'Nos.');
     } else {
       setEditingProduct(null);
       setBatches([]);
+      setSelectedUnit('Nos.');
     }
     setIsDialogOpen(true);
   };
@@ -45,7 +76,7 @@ export default function Products() {
       {
         id: crypto.randomUUID(),
         batchNumber: '',
-        mfgDate: '',
+        mfgDate: getCurrentMfgDate(),
         quantity: 0,
       },
     ]);
@@ -73,12 +104,12 @@ export default function Products() {
     const product: Product = {
       id: editingProduct?.id || crypto.randomUUID(),
       name: formData.get('name') as string,
-      description: formData.get('description') as string,
+      description: (formData.get('description') as string) || '',
       hsnSac: formData.get('hsnSac') as string,
       rate: parseFloat(formData.get('rate') as string),
-      unit: formData.get('unit') as string,
+      unit: selectedUnit,
       stock: totalStock,
-      batches: batches.filter(b => b.batchNumber), // Only save batches with batch numbers
+      batches: batches.filter(b => b.batchNumber),
       createdAt: editingProduct?.createdAt || new Date().toISOString(),
     };
 
@@ -131,26 +162,37 @@ export default function Products() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="name">Product Name</Label>
+                <Label htmlFor="name">Product Name *</Label>
                 <Input id="name" name="name" defaultValue={editingProduct?.name} required />
               </div>
               <div>
-                <Label htmlFor="description">Description</Label>
-                <Input id="description" name="description" defaultValue={editingProduct?.description} required />
+                <Label htmlFor="description">Description (Optional)</Label>
+                <Input id="description" name="description" defaultValue={editingProduct?.description} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="hsnSac">HSN/SAC</Label>
+                  <Label htmlFor="hsnSac">HSN/SAC *</Label>
                   <Input id="hsnSac" name="hsnSac" defaultValue={editingProduct?.hsnSac} required />
                 </div>
                 <div>
-                  <Label htmlFor="unit">Unit</Label>
-                  <Input id="unit" name="unit" defaultValue={editingProduct?.unit} placeholder="PCS, KG, etc." required />
+                  <Label>Unit *</Label>
+                  <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNIT_OPTIONS.map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {unit}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="rate">Rate</Label>
+                  <Label htmlFor="rate">Rate *</Label>
                   <Input id="rate" name="rate" type="number" step="0.01" defaultValue={editingProduct?.rate} required />
                 </div>
                 <div>
@@ -262,7 +304,7 @@ export default function Products() {
                       )}
                     </TableCell>
                     <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell>{product.description}</TableCell>
+                    <TableCell>{product.description || '-'}</TableCell>
                     <TableCell>{product.hsnSac}</TableCell>
                     <TableCell>₹{product.rate.toFixed(2)}</TableCell>
                     <TableCell>{product.unit}</TableCell>

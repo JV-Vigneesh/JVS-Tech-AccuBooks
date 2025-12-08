@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { getChallans } from '@/lib/storage';
-import { DeliveryChallan, Company } from '@/types/accounting';
+import { DeliveryChallan } from '@/types/accounting';
 import { useCompany } from '@/contexts/CompanyContext';
 import { ArrowLeft, Printer, Download } from 'lucide-react';
 import { format } from 'date-fns';
@@ -42,7 +42,6 @@ export default function ChallanView() {
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
     const imgWidth = 210;
-    const pageHeight = 297;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
     pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
@@ -91,124 +90,163 @@ export default function ChallanView() {
       {/* Printable Challan */}
       <div 
         ref={printRef} 
-        className="bg-white text-black p-8 max-w-4xl mx-auto border border-border print:border-black print:shadow-none"
+        className="bg-white text-black p-6 max-w-4xl mx-auto shadow-lg print:shadow-none"
         style={{ fontFamily: 'Arial, sans-serif' }}
       >
-        {/* Header */}
-        <div className="flex justify-between border-b-2 border-black pb-4 mb-4">
-          <div className="flex-1">
-            {company?.logo && (
-              <img src={company.logo} alt="Logo" className="h-16 mb-2" />
-            )}
-            <h2 className="text-xl font-bold">{company?.name || 'Company Name'}</h2>
-            <p className="text-sm whitespace-pre-line">{company?.address}</p>
-            {company?.mobile && <p className="text-sm">Mobile: {company.mobile}</p>}
-            {company?.email && <p className="text-sm">Email: {company.email}</p>}
-            {company?.gstin && <p className="text-sm font-semibold">GSTIN: {company.gstin}</p>}
-          </div>
-          <div className="text-right">
-            <h1 className="text-2xl font-bold mb-2">DELIVERY CHALLAN</h1>
-            <p className="text-sm"><span className="font-semibold">Challan No:</span> {challan.challanNumber}</p>
-            <p className="text-sm"><span className="font-semibold">Date:</span> {format(new Date(challan.date), 'dd/MM/yyyy')}</p>
-            <p className="text-sm mt-2"><span className="font-semibold">Reason:</span> {getReasonLabel(challan.reasonForTransfer)}</p>
-          </div>
-        </div>
-
-        {/* Customer & Dispatch Details */}
-        <div className="grid grid-cols-2 gap-4 border-b border-black pb-4 mb-4">
-          <div>
-            <h3 className="font-bold text-sm border-b border-black pb-1 mb-2">Consignee (Ship To)</h3>
-            <p className="font-semibold">{challan.customerName}</p>
-            <p className="text-sm whitespace-pre-line">{challan.customerAddress}</p>
-            {challan.customerGSTIN && <p className="text-sm">GSTIN: {challan.customerGSTIN}</p>}
-            {challan.customerState && <p className="text-sm">State: {challan.customerState}</p>}
-            {challan.customerMobile && <p className="text-sm">Mobile: {challan.customerMobile}</p>}
-            {challan.customerEmail && <p className="text-sm">Email: {challan.customerEmail}</p>}
-          </div>
-          <div>
-            <h3 className="font-bold text-sm border-b border-black pb-1 mb-2">Transport Details</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <p><span className="font-semibold">Dispatched Through:</span></p>
-              <p>{challan.dispatchedThrough || '-'}</p>
-              <p><span className="font-semibold">Destination:</span></p>
-              <p>{challan.destination || '-'}</p>
-              <p><span className="font-semibold">Vehicle No:</span></p>
-              <p>{challan.motorVehicleNo || '-'}</p>
-              <p><span className="font-semibold">Terms of Delivery:</span></p>
-              <p>{challan.termsOfDelivery || '-'}</p>
+        <div className="border-2 border-black">
+          {/* Header */}
+          <div className="grid grid-cols-2 border-b-2 border-black">
+            <div className="p-4 border-r-2 border-black">
+              <div className="flex items-start gap-3">
+                {company?.logo && (
+                  <img src={company.logo} alt="Logo" className="h-14 w-14 object-contain" />
+                )}
+                <div>
+                  <h2 className="text-xl font-bold">{company?.name || 'Company Name'}</h2>
+                  <p className="text-xs whitespace-pre-line">{company?.address}</p>
+                  {company?.mobile && <p className="text-xs">Mobile: {company.mobile}</p>}
+                  {company?.email && <p className="text-xs">Email: {company.email}</p>}
+                  {company?.gstin && <p className="text-xs font-semibold">GSTIN: {company.gstin}</p>}
+                </div>
+              </div>
+            </div>
+            <div className="p-4 flex flex-col justify-center text-center">
+              <h1 className="text-2xl font-bold">DELIVERY CHALLAN</h1>
+              <p className="text-sm font-semibold mt-1">Challan No: {challan.challanNumber}</p>
+              <p className="text-sm">Date: {format(new Date(challan.date), 'dd-MMM-yyyy')}</p>
+              <p className="text-xs mt-1">Reason: {getReasonLabel(challan.reasonForTransfer)}</p>
             </div>
           </div>
-        </div>
 
-        {/* Items Table */}
-        <table className="w-full border-collapse mb-4 text-sm">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-black p-2 text-left w-10">Sl.</th>
-              <th className="border border-black p-2 text-left">Description of Goods</th>
-              <th className="border border-black p-2 text-center w-24">HSN/SAC</th>
-              <th className="border border-black p-2 text-center w-20">Cases</th>
-              <th className="border border-black p-2 text-center w-16">Qty</th>
-              <th className="border border-black p-2 text-center w-16">Unit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {challan.items.map((item, index) => (
-              <tr key={index}>
-                <td className="border border-black p-2 text-center">{item.slNo}</td>
-                <td className="border border-black p-2">
-                  <div>{item.description}</div>
-                  {(item.batchNumber || item.mfgDate) && (
-                    <div className="text-xs text-gray-600">
-                      {item.batchNumber && <span>Batch: {item.batchNumber}</span>}
-                      {item.batchNumber && item.mfgDate && <span> | </span>}
-                      {item.mfgDate && <span>Mfg: {item.mfgDate}</span>}
-                    </div>
-                  )}
-                </td>
-                <td className="border border-black p-2 text-center">{item.hsnSac}</td>
-                <td className="border border-black p-2 text-center">{item.cases || '-'}</td>
-                <td className="border border-black p-2 text-center">{item.quantity}</td>
-                <td className="border border-black p-2 text-center">{item.unit}</td>
+          {/* Customer & Dispatch Details */}
+          <div className="grid grid-cols-2 border-b border-black">
+            <div className="p-3 border-r border-black">
+              <p className="text-xs font-semibold text-gray-600 mb-1">Consignee (Ship To):</p>
+              <p className="font-bold text-base">{challan.customerName}</p>
+              <p className="text-xs whitespace-pre-line">{challan.customerAddress}</p>
+              {challan.customerState && <p className="text-xs">State: {challan.customerState}</p>}
+              {challan.customerMobile && <p className="text-xs">Mobile: {challan.customerMobile}</p>}
+              {challan.customerEmail && <p className="text-xs">Email: {challan.customerEmail}</p>}
+              {challan.customerGSTIN && <p className="text-xs font-semibold">GSTIN: {challan.customerGSTIN}</p>}
+            </div>
+            <div className="p-3">
+              <p className="text-xs font-semibold text-gray-600 mb-1">Transport Details:</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-gray-600">Dispatched Through:</span>
+                  <p className="font-semibold">{challan.dispatchedThrough || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-600">Destination:</span>
+                  <p className="font-semibold">{challan.destination || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-600">Vehicle No:</span>
+                  <p className="font-semibold">{challan.motorVehicleNo || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-600">Terms of Delivery:</span>
+                  <p className="font-semibold">{challan.termsOfDelivery || '-'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Items Table */}
+          <table className="w-full border-collapse text-xs">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border-b border-r border-black p-2 text-center w-10">Sl.</th>
+                <th className="border-b border-r border-black p-2 text-left">Description / Batch / Mfg</th>
+                <th className="border-b border-r border-black p-2 text-center w-20">HSN/SAC</th>
+                <th className="border-b border-r border-black p-2 text-center w-16">Cases</th>
+                <th className="border-b border-r border-black p-2 text-center w-14">Qty</th>
+                <th className="border-b border-black p-2 text-center w-14">Unit</th>
               </tr>
-            ))}
-            {/* Total Row */}
-            <tr className="font-bold bg-gray-100">
-              <td colSpan={4} className="border border-black p-2 text-right">Total Quantity:</td>
-              <td className="border border-black p-2 text-center">{challan.totalQty}</td>
-              <td className="border border-black p-2"></td>
-            </tr>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {challan.items.map((item, index) => (
+                <tr key={index}>
+                  <td className="border-b border-r border-black p-2 text-center">{item.slNo}</td>
+                  <td className="border-b border-r border-black p-2">
+                    <div className="font-medium">{item.description}</div>
+                    {(item.batchNumber || item.mfgDate) && (
+                      <div className="text-[10px] text-gray-600">
+                        {item.batchNumber && <span>Batch: {item.batchNumber}</span>}
+                        {item.batchNumber && item.mfgDate && <span> | </span>}
+                        {item.mfgDate && <span>Mfg: {item.mfgDate}</span>}
+                      </div>
+                    )}
+                  </td>
+                  <td className="border-b border-r border-black p-2 text-center">{item.hsnSac}</td>
+                  <td className="border-b border-r border-black p-2 text-center">{item.cases || '-'}</td>
+                  <td className="border-b border-r border-black p-2 text-center">{item.quantity}</td>
+                  <td className="border-b border-black p-2 text-center">{item.unit}</td>
+                </tr>
+              ))}
+              {/* Empty rows for spacing */}
+              {challan.items.length < 5 && Array.from({ length: 5 - challan.items.length }).map((_, i) => (
+                <tr key={`empty-${i}`}>
+                  <td className="border-b border-r border-black p-2">&nbsp;</td>
+                  <td className="border-b border-r border-black p-2"></td>
+                  <td className="border-b border-r border-black p-2"></td>
+                  <td className="border-b border-r border-black p-2"></td>
+                  <td className="border-b border-r border-black p-2"></td>
+                  <td className="border-b border-black p-2"></td>
+                </tr>
+              ))}
+              {/* Total Row */}
+              <tr className="font-bold bg-gray-100">
+                <td colSpan={4} className="border-b border-r border-black p-2 text-right">Total Quantity:</td>
+                <td className="border-b border-r border-black p-2 text-center">{challan.totalQty}</td>
+                <td className="border-b border-black p-2"></td>
+              </tr>
+            </tbody>
+          </table>
 
-        {/* Remarks */}
-        {challan.remarks && (
-          <div className="border border-black p-3 mb-4">
-            <p className="font-semibold text-sm">Remarks:</p>
-            <p className="text-sm">{challan.remarks}</p>
-          </div>
-        )}
+          {/* Approx Value */}
+          {challan.approxValue !== undefined && challan.approxValue > 0 && (
+            <div className="border-b border-black p-2 text-sm">
+              <span className="font-semibold">Approximate Value of Goods: </span>
+              <span>₹{challan.approxValue.toFixed(2)}</span>
+            </div>
+          )}
 
-        {/* Footer */}
-        <div className="flex justify-between mt-8 pt-4">
-          <div>
-            <p className="text-sm mb-1">Received the above goods in good condition</p>
-            <div className="mt-12 border-t border-black pt-1 w-48">
-              <p className="text-sm text-center">Receiver's Signature</p>
+          {/* Remarks */}
+          {challan.remarks && (
+            <div className="border-b border-black p-2">
+              <p className="font-semibold text-xs">Remarks:</p>
+              <p className="text-xs">{challan.remarks}</p>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="p-4">
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-xs mb-1">Received the above goods in good condition</p>
+                <div className="mt-12 border-t border-black pt-1 w-40">
+                  <p className="text-xs text-center">Receiver's Signature</p>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-semibold mb-1">For {company?.name}</p>
+                <div className="h-16 flex flex-col items-center justify-center gap-1">
+                  {company?.stamp && (
+                    <img src={company.stamp} alt="Stamp" className="h-12 object-contain" />
+                  )}
+                  {company?.signature && (
+                    <img src={company.signature} alt="Signature" className="h-8 object-contain" />
+                  )}
+                </div>
+                <p className="text-xs font-semibold border-t border-black pt-1">Authorized Signatory</p>
+              </div>
             </div>
           </div>
-          <div className="text-right">
-            <p className="font-semibold mb-1">For {company?.name}</p>
-            {company?.signature && (
-              <img src={company.signature} alt="Signature" className="h-16 ml-auto" />
-            )}
-            {company?.stamp && (
-              <img src={company.stamp} alt="Stamp" className="h-16 ml-auto mt-2" />
-            )}
-            <div className="mt-4 border-t border-black pt-1">
-              <p className="text-sm">Authorized Signatory</p>
-            </div>
-          </div>
+        </div>
+
+        <div className="mt-2 text-center text-[10px] text-gray-500">
+          <p>This is a computer generated delivery challan</p>
         </div>
       </div>
 
@@ -223,13 +261,6 @@ export default function ChallanView() {
           }
           .print\\:hidden {
             display: none !important;
-          }
-          [data-print] {
-            visibility: visible;
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
           }
         }
       `}</style>

@@ -18,10 +18,12 @@ export default function Customers() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState<Partial<Customer>>({
     name: '',
+    partyName: '',
     email: '',
     mobile: '',
     address: '',
     gstin: '',
+    state: '',
   });
 
   useEffect(() => {
@@ -38,10 +40,12 @@ export default function Customers() {
     const customer: Customer = {
       id: editingCustomer?.id || Date.now().toString(),
       name: formData.name || '',
+      partyName: formData.partyName,
       email: formData.email,
       mobile: formData.mobile,
       address: formData.address,
       gstin: formData.gstin,
+      state: formData.state,
       createdAt: editingCustomer?.createdAt || new Date().toISOString(),
     };
 
@@ -76,10 +80,12 @@ export default function Customers() {
   const resetForm = () => {
     setFormData({
       name: '',
+      partyName: '',
       email: '',
       mobile: '',
       address: '',
       gstin: '',
+      state: '',
     });
     setEditingCustomer(null);
   };
@@ -108,12 +114,22 @@ export default function Customers() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Customer Name *</Label>
+                  <Label htmlFor="name">Customer/Company Name *</Label>
                   <Input
                     id="name"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Company or person name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="partyName">Party Name (Optional)</Label>
+                  <Input
+                    id="partyName"
+                    value={formData.partyName || ''}
+                    onChange={(e) => setFormData({ ...formData, partyName: e.target.value })}
+                    placeholder="Contact person name"
                   />
                 </div>
                 <div className="space-y-2">
@@ -139,6 +155,14 @@ export default function Customers() {
                     id="gstin"
                     value={formData.gstin}
                     onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    id="state"
+                    value={formData.state || ''}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2 col-span-2">
@@ -179,9 +203,10 @@ export default function Customers() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Party Name</TableHead>
                   <TableHead>Mobile</TableHead>
-                  <TableHead>Email</TableHead>
                   <TableHead>GSTIN</TableHead>
+                  <TableHead>State</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -189,9 +214,10 @@ export default function Customers() {
                 {customers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell>{customer.partyName || '-'}</TableCell>
                     <TableCell>{customer.mobile || '-'}</TableCell>
-                    <TableCell>{customer.email || '-'}</TableCell>
                     <TableCell>{customer.gstin || '-'}</TableCell>
+                    <TableCell>{customer.state || '-'}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"

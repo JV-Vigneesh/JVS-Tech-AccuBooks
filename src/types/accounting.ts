@@ -88,6 +88,7 @@ export interface DeliveryChallan {
   reasonForTransfer: 'supply' | 'job_work' | 'exhibition' | 'personal' | 'other';
   items: InvoiceItem[];
   totalQty: number;
+  approxValue?: number;
   remarks?: string;
   status: 'draft' | 'dispatched' | 'delivered';
   createdAt: string;
@@ -138,6 +139,7 @@ export interface Company {
 export interface Customer {
   id: string;
   name: string;
+  partyName?: string;
   email?: string;
   mobile?: string;
   address?: string;

@@ -6,12 +6,32 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getChallans, saveChallan, getProducts, getCustomers, getNextChallanNumber } from '@/lib/storage';
-import { DeliveryChallan, InvoiceItem, Product, Customer, ProductBatch } from '@/types/accounting';
+import { DeliveryChallan, InvoiceItem, Product, Customer } from '@/types/accounting';
 import { Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCompany } from '@/contexts/CompanyContext';
+
+const UNIT_OPTIONS = [
+  'Nos.',
+  'PCS',
+  'KG',
+  'GM',
+  'LTR',
+  'ML',
+  'MTR',
+  'CM',
+  'BOX',
+  'PKT',
+  'SET',
+  'PAIR',
+  'DOZEN',
+  'ROLL',
+  'BAG',
+  'BTL',
+  'CAN',
+  'CTN',
+];
 
 export default function ChallanForm() {
   const { id } = useParams();
@@ -39,6 +59,7 @@ export default function ChallanForm() {
     reasonForTransfer: 'supply',
     items: [],
     totalQty: 0,
+    approxValue: undefined,
     remarks: '',
     status: 'draft',
     createdAt: new Date().toISOString(),
@@ -115,6 +136,7 @@ export default function ChallanForm() {
     const product = products.find(p => p.id === productId);
     if (product) {
       const newItems = [...challan.items];
+      const firstBatch = product.batches?.[0];
       newItems[index] = {
         ...newItems[index],
         productId: product.id,
@@ -122,6 +144,8 @@ export default function ChallanForm() {
         hsnSac: product.hsnSac,
         rate: product.rate,
         unit: product.unit || 'Nos.',
+        batchNumber: firstBatch?.batchNumber || '',
+        mfgDate: firstBatch?.mfgDate || '',
       };
       newItems[index].amount = newItems[index].rate * newItems[index].quantity;
       newItems[index].finalAmount = newItems[index].amount;
@@ -137,8 +161,6 @@ export default function ChallanForm() {
     if (product && product.batches) {
       const batch = product.batches.find(b => b.id === batchId);
       if (batch) {
-        updateItem(index, 'batchNumber', batch.batchNumber);
-        // Also update mfgDate
         const newItems = [...challan.items];
         newItems[index] = { ...newItems[index], batchNumber: batch.batchNumber, mfgDate: batch.mfgDate };
         const totals = recalculateTotals(newItems);
@@ -223,7 +245,7 @@ export default function ChallanForm() {
             <CardTitle>Challan Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="challanNumber">Challan Number</Label>
                 <Input
@@ -271,7 +293,7 @@ export default function ChallanForm() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="dispatchedThrough">Dispatched Through</Label>
                 <Input
@@ -296,6 +318,17 @@ export default function ChallanForm() {
                   onChange={(e) => setChallan({ ...challan, termsOfDelivery: e.target.value })}
                 />
               </div>
+              <div>
+                <Label htmlFor="approxValue">Approx Value of Goods (Optional)</Label>
+                <Input
+                  id="approxValue"
+                  type="number"
+                  step="0.01"
+                  value={challan.approxValue || ''}
+                  onChange={(e) => setChallan({ ...challan, approxValue: parseFloat(e.target.value) || undefined })}
+                  placeholder="₹0.00"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -314,13 +347,13 @@ export default function ChallanForm() {
                 <SelectContent>
                   {customers.map((customer) => (
                     <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
+                      {customer.name} {customer.partyName ? `(${customer.partyName})` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="customerName">Customer Name *</Label>
                 <Input
@@ -347,7 +380,7 @@ export default function ChallanForm() {
                 rows={2}
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="customerEmail">Email</Label>
                 <Input
@@ -388,151 +421,177 @@ export default function ChallanForm() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">Sl.</TableHead>
-                    <TableHead className="w-32">Product</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="w-28">Batch</TableHead>
-                    <TableHead className="w-24">Mfg Date</TableHead>
-                    <TableHead className="w-20">HSN/SAC</TableHead>
-                    <TableHead className="w-16">Cases</TableHead>
-                    <TableHead className="w-16">Qty</TableHead>
-                    <TableHead className="w-16">Unit</TableHead>
-                    <TableHead className="w-10"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {challan.items.map((item, index) => {
-                    const selectedProduct = products.find(p => p.id === item.productId);
-                    return (
-                      <TableRow key={index}>
-                        <TableCell>{item.slNo}</TableCell>
-                        <TableCell>
-                          <Select onValueChange={(value) => selectProduct(index, value)}>
-                            <SelectTrigger className="h-8">
-                              <SelectValue placeholder="Select" />
+            <div className="space-y-4">
+              {challan.items.map((item, index) => {
+                const selectedProduct = products.find(p => p.id === item.productId);
+                return (
+                  <div key={index} className="border border-border rounded-lg p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-sm">Item #{item.slNo}</span>
+                      <Button variant="ghost" size="icon" onClick={() => removeItem(index)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                      <div className="col-span-2 sm:col-span-1">
+                        <Label className="text-xs">Product</Label>
+                        <Select onValueChange={(value) => selectProduct(index, value)}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="col-span-2 sm:col-span-2 lg:col-span-2">
+                        <Label className="text-xs">Description</Label>
+                        <Input
+                          className="h-9"
+                          value={item.description}
+                          onChange={(e) => updateItem(index, 'description', e.target.value)}
+                          placeholder="Type or select product"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Batch</Label>
+                        {selectedProduct?.batches && selectedProduct.batches.length > 0 ? (
+                          <Select onValueChange={(value) => selectBatch(index, value)}>
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder={item.batchNumber || "Select"} />
                             </SelectTrigger>
                             <SelectContent>
-                              {products.map((product) => (
-                                <SelectItem key={product.id} value={product.id}>
-                                  {product.name}
+                              {selectedProduct.batches.map((batch) => (
+                                <SelectItem key={batch.id} value={batch.id}>
+                                  {batch.batchNumber}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                        </TableCell>
-                        <TableCell>
+                        ) : (
                           <Input
-                            className="h-8"
-                            value={item.description}
-                            onChange={(e) => updateItem(index, 'description', e.target.value)}
-                            placeholder="Type or select"
+                            className="h-9"
+                            value={item.batchNumber || ''}
+                            onChange={(e) => updateItem(index, 'batchNumber', e.target.value)}
                           />
-                        </TableCell>
-                        <TableCell>
-                          {selectedProduct?.batches && selectedProduct.batches.length > 0 ? (
-                            <Select onValueChange={(value) => selectBatch(index, value)}>
-                              <SelectTrigger className="h-8">
-                                <SelectValue placeholder={item.batchNumber || "Select"} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {selectedProduct.batches.map((batch) => (
-                                  <SelectItem key={batch.id} value={batch.id}>
-                                    {batch.batchNumber} ({batch.mfgDate})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input
-                              className="h-8"
-                              value={item.batchNumber || ''}
-                              onChange={(e) => updateItem(index, 'batchNumber', e.target.value)}
-                            />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            className="h-8"
-                            value={item.mfgDate || ''}
-                            onChange={(e) => updateItem(index, 'mfgDate', e.target.value)}
-                            placeholder="MM/YYYY"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            className="h-8"
-                            value={item.hsnSac}
-                            onChange={(e) => updateItem(index, 'hsnSac', e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            className="h-8"
-                            type="number"
-                            value={item.cases || ''}
-                            onChange={(e) => updateItem(index, 'cases', parseInt(e.target.value) || 0)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            className="h-8"
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            className="h-8"
-                            value={item.unit}
-                            onChange={(e) => updateItem(index, 'unit', e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItem(index)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Mfg Date</Label>
+                        <Input
+                          className="h-9"
+                          value={item.mfgDate || ''}
+                          onChange={(e) => updateItem(index, 'mfgDate', e.target.value)}
+                          placeholder="MM/YYYY"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">HSN/SAC</Label>
+                        <Input
+                          className="h-9"
+                          value={item.hsnSac}
+                          onChange={(e) => updateItem(index, 'hsnSac', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <Label className="text-xs">Cases</Label>
+                        <Input
+                          className="h-9"
+                          type="number"
+                          value={item.cases || ''}
+                          onChange={(e) => updateItem(index, 'cases', parseInt(e.target.value) || 0)}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Qty</Label>
+                        <Input
+                          className="h-9"
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Unit</Label>
+                        <Select 
+                          value={item.unit} 
+                          onValueChange={(value) => updateItem(index, 'unit', value)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {UNIT_OPTIONS.map((unit) => (
+                              <SelectItem key={unit} value={unit}>
+                                {unit}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {challan.items.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No items added. Click "Add Item" to add items.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Summary & Remarks</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="remarks">Remarks</Label>
-                <Textarea
-                  id="remarks"
-                  value={challan.remarks || ''}
-                  onChange={(e) => setChallan({ ...challan, remarks: e.target.value })}
-                  rows={3}
-                  placeholder="Any additional notes or remarks..."
-                />
-              </div>
-              <div className="flex flex-col justify-end">
-                <div className="bg-muted rounded-lg p-4">
-                  <div className="flex justify-between text-lg font-semibold">
-                    <span>Total Quantity:</span>
-                    <span>{challan.totalQty}</span>
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Remarks</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={challan.remarks || ''}
+                onChange={(e) => setChallan({ ...challan, remarks: e.target.value })}
+                rows={3}
+                placeholder="Any additional remarks..."
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Total Quantity:</span>
+                  <span className="font-semibold">{challan.totalQty}</span>
                 </div>
+                {challan.approxValue !== undefined && challan.approxValue > 0 && (
+                  <div className="flex justify-between">
+                    <span>Approx Value:</span>
+                    <span className="font-semibold">₹{challan.approxValue.toFixed(2)}</span>
+                  </div>
+                )}
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

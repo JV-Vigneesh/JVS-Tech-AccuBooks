@@ -6,12 +6,32 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getInvoices, saveInvoice, getProducts, getCustomers, getNextInvoiceNumber } from '@/lib/storage';
 import { Invoice, InvoiceItem, Product, Customer, InvoiceTax } from '@/types/accounting';
 import { Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCompany } from '@/contexts/CompanyContext';
+
+const UNIT_OPTIONS = [
+  'Nos.',
+  'PCS',
+  'KG',
+  'GM',
+  'LTR',
+  'ML',
+  'MTR',
+  'CM',
+  'BOX',
+  'PKT',
+  'SET',
+  'PAIR',
+  'DOZEN',
+  'ROLL',
+  'BAG',
+  'BTL',
+  'CAN',
+  'CTN',
+];
 
 export default function InvoiceForm() {
   const { id } = useParams();
@@ -150,18 +170,36 @@ export default function InvoiceForm() {
     const product = products.find(p => p.id === productId);
     if (product) {
       const newItems = [...invoice.items];
+      const firstBatch = product.batches?.[0];
       newItems[index] = {
         ...newItems[index],
+        productId: product.id,
         description: product.name,
         hsnSac: product.hsnSac,
         rate: product.rate,
         unit: product.unit || 'Nos.',
+        batchNumber: firstBatch?.batchNumber || '',
+        mfgDate: firstBatch?.mfgDate || '',
       };
       newItems[index].amount = newItems[index].rate * newItems[index].quantity;
       newItems[index].finalAmount = calculateItemTotal(newItems[index]);
       
       const totals = recalculateTotals(newItems, invoice.taxes);
       setInvoice({ ...invoice, items: newItems, ...totals });
+    }
+  };
+
+  const selectBatch = (index: number, batchId: string) => {
+    const item = invoice.items[index];
+    const product = products.find(p => p.id === item.productId);
+    if (product && product.batches) {
+      const batch = product.batches.find(b => b.id === batchId);
+      if (batch) {
+        const newItems = [...invoice.items];
+        newItems[index] = { ...newItems[index], batchNumber: batch.batchNumber, mfgDate: batch.mfgDate };
+        const totals = recalculateTotals(newItems, invoice.taxes);
+        setInvoice({ ...invoice, items: newItems, ...totals });
+      }
     }
   };
 
@@ -175,6 +213,7 @@ export default function InvoiceForm() {
         customerGSTIN: customer.gstin || '',
         customerEmail: customer.email || '',
         customerMobile: customer.mobile || '',
+        customerState: customer.state || '',
       });
     }
   };
@@ -263,7 +302,7 @@ export default function InvoiceForm() {
             <CardTitle>Invoice Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="invoiceNumber">Invoice Number</Label>
                 <Input
@@ -300,7 +339,7 @@ export default function InvoiceForm() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="dispatchedThrough">Dispatched Through</Label>
                 <Input
@@ -343,13 +382,13 @@ export default function InvoiceForm() {
                 <SelectContent>
                   {customers.map((customer) => (
                     <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
+                      {customer.name} {customer.partyName ? `(${customer.partyName})` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="customerName">Customer Name *</Label>
                 <Input
@@ -376,7 +415,7 @@ export default function InvoiceForm() {
                 rows={2}
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="customerEmail">Email</Label>
                 <Input
@@ -417,32 +456,23 @@ export default function InvoiceForm() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">Sl.</TableHead>
-                    <TableHead className="w-32">Product</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="w-24">Batch No.</TableHead>
-                    <TableHead className="w-24">Mfg Date</TableHead>
-                    <TableHead className="w-20">HSN/SAC</TableHead>
-                    <TableHead className="w-16">Cases</TableHead>
-                    <TableHead className="w-16">Qty</TableHead>
-                    <TableHead className="w-16">Unit</TableHead>
-                    <TableHead className="w-20">Rate</TableHead>
-                    <TableHead className="w-14">Disc%</TableHead>
-                    <TableHead className="w-20">Amount</TableHead>
-                    <TableHead className="w-10"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoice.items.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{item.slNo}</TableCell>
-                      <TableCell>
+            <div className="space-y-4">
+              {invoice.items.map((item, index) => {
+                const selectedProduct = products.find(p => p.id === item.productId);
+                return (
+                  <div key={index} className="border border-border rounded-lg p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-sm">Item #{item.slNo}</span>
+                      <Button variant="ghost" size="icon" onClick={() => removeItem(index)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                      <div className="col-span-2 sm:col-span-1">
+                        <Label className="text-xs">Product</Label>
                         <Select onValueChange={(value) => selectProduct(index, value)}>
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-9">
                             <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
@@ -453,140 +483,215 @@ export default function InvoiceForm() {
                             ))}
                           </SelectContent>
                         </Select>
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                      
+                      <div className="col-span-2 sm:col-span-2 lg:col-span-2">
+                        <Label className="text-xs">Description</Label>
                         <Input
-                          className="h-8"
+                          className="h-9"
                           value={item.description}
                           onChange={(e) => updateItem(index, 'description', e.target.value)}
-                          placeholder="Type or select"
+                          placeholder="Type or select product"
                         />
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Batch</Label>
+                        {selectedProduct?.batches && selectedProduct.batches.length > 0 ? (
+                          <Select onValueChange={(value) => selectBatch(index, value)}>
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder={item.batchNumber || "Select"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {selectedProduct.batches.map((batch) => (
+                                <SelectItem key={batch.id} value={batch.id}>
+                                  {batch.batchNumber}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            className="h-9"
+                            value={item.batchNumber || ''}
+                            onChange={(e) => updateItem(index, 'batchNumber', e.target.value)}
+                          />
+                        )}
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Mfg Date</Label>
                         <Input
-                          className="h-8"
-                          value={item.batchNumber || ''}
-                          onChange={(e) => updateItem(index, 'batchNumber', e.target.value)}
-                          placeholder="Batch"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          className="h-8"
+                          className="h-9"
                           value={item.mfgDate || ''}
                           onChange={(e) => updateItem(index, 'mfgDate', e.target.value)}
                           placeholder="MM/YYYY"
                         />
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">HSN/SAC</Label>
                         <Input
-                          className="h-8"
+                          className="h-9"
                           value={item.hsnSac}
                           onChange={(e) => updateItem(index, 'hsnSac', e.target.value)}
                         />
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+                      <div>
+                        <Label className="text-xs">Cases</Label>
                         <Input
-                          className="h-8"
+                          className="h-9"
                           type="number"
                           value={item.cases || ''}
                           onChange={(e) => updateItem(index, 'cases', parseInt(e.target.value) || 0)}
-                          placeholder="0"
                         />
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Qty</Label>
                         <Input
-                          className="h-8"
+                          className="h-9"
                           type="number"
                           value={item.quantity}
                           onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
                         />
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Unit</Label>
+                        <Select 
+                          value={item.unit} 
+                          onValueChange={(value) => updateItem(index, 'unit', value)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {UNIT_OPTIONS.map((unit) => (
+                              <SelectItem key={unit} value={unit}>
+                                {unit}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Rate</Label>
                         <Input
-                          className="h-8"
-                          value={item.unit}
-                          onChange={(e) => updateItem(index, 'unit', e.target.value)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          className="h-8"
+                          className="h-9"
                           type="number"
+                          step="0.01"
                           value={item.rate}
                           onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
                         />
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Disc %</Label>
                         <Input
-                          className="h-8"
+                          className="h-9"
                           type="number"
                           value={item.discountPercent}
                           onChange={(e) => updateItem(index, 'discountPercent', parseFloat(e.target.value) || 0)}
                         />
-                      </TableCell>
-                      <TableCell className="font-medium">₹{item.finalAmount.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => removeItem(index)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Taxes</CardTitle>
-              <Button onClick={addTax} size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Tax
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {invoice.taxes.map((tax, index) => (
-                <div key={index} className="flex items-center gap-4">
-                  <Input
-                    value={tax.name}
-                    onChange={(e) => updateTax(index, 'name', e.target.value)}
-                    placeholder="Tax Name"
-                    className="w-32"
-                  />
-                  <Input
-                    type="number"
-                    value={tax.percent}
-                    onChange={(e) => updateTax(index, 'percent', parseFloat(e.target.value) || 0)}
-                    placeholder="%"
-                    className="w-20"
-                  />
-                  <span className="text-sm text-muted-foreground">= ₹{tax.amount.toFixed(2)}</span>
-                  <Button variant="ghost" size="sm" onClick={() => removeTax(index)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                      </div>
+                      
+                      <div className="col-span-2 sm:col-span-1">
+                        <Label className="text-xs">Amount</Label>
+                        <div className="h-9 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
+                          ₹{item.finalAmount.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {invoice.items.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No items added. Click "Add Item" to add invoice items.
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-2 text-right">
-              <p>Total Qty: <span className="font-semibold">{invoice.totalQty}</span></p>
-              <p>Subtotal: <span className="font-semibold">₹{invoice.subtotal.toFixed(2)}</span></p>
-              <p>Total Tax: <span className="font-semibold">₹{invoice.taxAmount.toFixed(2)}</span></p>
-              <p>Round Off: <span className="font-semibold">{invoice.roundOff >= 0 ? '+' : ''}₹{invoice.roundOff.toFixed(2)}</span></p>
-              <p className="text-xl font-bold">Grand Total: ₹{invoice.total.toFixed(2)}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Taxes</CardTitle>
+                <Button onClick={addTax} size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Tax
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {invoice.taxes.map((tax, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={tax.name}
+                      onChange={(e) => updateTax(index, 'name', e.target.value)}
+                      placeholder="Tax name"
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      value={tax.percent}
+                      onChange={(e) => updateTax(index, 'percent', parseFloat(e.target.value) || 0)}
+                      placeholder="%"
+                      className="w-20"
+                    />
+                    <span className="text-sm text-muted-foreground w-24 text-right">
+                      ₹{tax.amount.toFixed(2)}
+                    </span>
+                    <Button variant="ghost" size="icon" onClick={() => removeTax(index)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Total Quantity:</span>
+                  <span>{invoice.totalQty}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>₹{invoice.subtotal.toFixed(2)}</span>
+                </div>
+                {invoice.taxes.map((tax, index) => (
+                  <div key={index} className="flex justify-between text-sm text-muted-foreground">
+                    <span>{tax.name} ({tax.percent}%):</span>
+                    <span>₹{tax.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between text-sm">
+                  <span>Round Off:</span>
+                  <span>{invoice.roundOff >= 0 ? '+' : ''}₹{invoice.roundOff.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
+                  <span>Total:</span>
+                  <span>₹{invoice.total.toFixed(2)}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <Card>
           <CardHeader>
@@ -594,7 +699,7 @@ export default function InvoiceForm() {
           </CardHeader>
           <CardContent>
             <Textarea
-              value={invoice.declaration || ''}
+              value={invoice.declaration}
               onChange={(e) => setInvoice({ ...invoice, declaration: e.target.value })}
               rows={3}
             />
