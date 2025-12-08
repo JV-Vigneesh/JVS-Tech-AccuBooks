@@ -84,201 +84,247 @@ export default function InvoiceView() {
         </div>
       </div>
 
-      {/* Invoice Content - New Layout */}
+      {/* Invoice Content - Professional Layout */}
       <div 
         ref={invoiceRef} 
-        className="bg-white text-black p-6 shadow-lg rounded-lg print-area"
+        className="bg-white text-black max-w-4xl mx-auto shadow-lg print-area"
         style={{ backgroundColor: '#ffffff', color: '#000000' }}
       >
-        <div className="border-2 border-black">
-          {/* Header: Company on Left, TAX INVOICE on Right */}
-          <div className="grid grid-cols-2 border-b-2 border-black">
-            {/* Left: Company Details */}
-            <div className="p-3 border-r-2 border-black">
-              <div className="flex items-start gap-3">
-                {company?.logo && (
-                  <img src={company.logo} alt="Logo" className="h-14 w-14 object-contain" />
-                )}
-                <div>
-                  <h1 className="text-xl font-bold">{company?.name || 'Company Name'}</h1>
-                  <p className="text-xs whitespace-pre-line">{company?.address || 'Company Address'}</p>
-                  {company?.mobile && <p className="text-xs">Mobile: {company.mobile}</p>}
-                  {company?.email && <p className="text-xs">Email: {company.email}</p>}
-                  {company?.gstin && <p className="text-xs font-semibold">GSTIN: {company.gstin}</p>}
+        {/* Main Border Container */}
+        <div className="border-2 border-gray-800">
+          {/* Header Section */}
+          <div className="border-b-2 border-gray-800">
+            <div className="grid grid-cols-12">
+              {/* Company Details - Left */}
+              <div className="col-span-7 p-4 border-r-2 border-gray-800">
+                <div className="flex items-start gap-3">
+                  {company?.logo && (
+                    <img src={company.logo} alt="Logo" className="h-16 w-16 object-contain border border-gray-300 p-1" />
+                  )}
+                  <div className="flex-1">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-1">{company?.name || 'Company Name'}</h1>
+                    <p className="text-sm text-gray-700 whitespace-pre-line leading-tight">{company?.address || 'Company Address'}</p>
+                    <div className="mt-2 text-sm">
+                      {company?.mobile && <p><span className="font-semibold">Phone:</span> {company.mobile}</p>}
+                      {company?.email && <p><span className="font-semibold">Email:</span> {company.email}</p>}
+                      {company?.gstin && <p className="font-semibold text-gray-900">GSTIN: {company.gstin}</p>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Invoice Info - Right */}
+              <div className="col-span-5 p-4 bg-gray-50">
+                <div className="text-center">
+                  <div className="inline-block border-2 border-gray-800 px-6 py-2 mb-3">
+                    <h2 className="text-xl font-bold tracking-wide">TAX INVOICE</h2>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between border-b border-gray-300 pb-1">
+                      <span className="font-semibold">Invoice No:</span>
+                      <span className="font-bold">{invoice.invoiceNumber}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-gray-300 pb-1">
+                      <span className="font-semibold">Date:</span>
+                      <span>{format(new Date(invoice.date), 'dd-MMM-yyyy')}</span>
+                    </div>
+                    {invoice.dueDate && (
+                      <div className="flex justify-between">
+                        <span className="font-semibold">Due Date:</span>
+                        <span>{format(new Date(invoice.dueDate), 'dd-MMM-yyyy')}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-            {/* Right: TAX INVOICE, Invoice No, Date */}
-            <div className="p-3 text-center flex flex-col justify-center">
-              <h2 className="text-2xl font-bold">TAX INVOICE</h2>
-              <p className="text-sm font-semibold mt-1">Invoice No: {invoice.invoiceNumber}</p>
-              <p className="text-sm">Date: {format(new Date(invoice.date), 'dd-MMM-yyyy')}</p>
-              {invoice.dueDate && (
-                <p className="text-xs text-gray-600">Due: {format(new Date(invoice.dueDate), 'dd-MMM-yyyy')}</p>
-              )}
-            </div>
           </div>
 
-          {/* Bill To on Left, Dispatch Details on Right */}
-          <div className="grid grid-cols-2 border-b border-black">
-            {/* Left: Bill To */}
-            <div className="border-r border-black p-3">
-              <p className="text-xs font-semibold text-gray-600 mb-1">Bill To:</p>
-              <p className="font-bold text-base">{invoice.customerName}</p>
-              <p className="text-xs whitespace-pre-line">{invoice.customerAddress}</p>
-              {invoice.customerState && <p className="text-xs">State: {invoice.customerState}</p>}
-              {invoice.customerMobile && <p className="text-xs">Mobile: {invoice.customerMobile}</p>}
-              {invoice.customerEmail && <p className="text-xs">Email: {invoice.customerEmail}</p>}
-              {invoice.customerGSTIN && <p className="text-xs font-semibold">GSTIN: {invoice.customerGSTIN}</p>}
+          {/* Bill To & Dispatch Section */}
+          <div className="grid grid-cols-12 border-b-2 border-gray-800">
+            {/* Bill To - Left */}
+            <div className="col-span-6 border-r-2 border-gray-800">
+              <div className="bg-gray-100 px-3 py-1.5 border-b border-gray-400">
+                <h3 className="font-bold text-sm">BILL TO</h3>
+              </div>
+              <div className="p-3 text-sm min-h-[100px]">
+                <p className="font-bold text-base mb-1">{invoice.customerName}</p>
+                <p className="text-gray-700 whitespace-pre-line leading-tight">{invoice.customerAddress}</p>
+                {invoice.customerState && <p className="mt-1"><span className="font-semibold">State:</span> {invoice.customerState}</p>}
+                {invoice.customerMobile && <p><span className="font-semibold">Mobile:</span> {invoice.customerMobile}</p>}
+                {invoice.customerEmail && <p><span className="font-semibold">Email:</span> {invoice.customerEmail}</p>}
+                {invoice.customerGSTIN && <p className="font-semibold mt-1">GSTIN: {invoice.customerGSTIN}</p>}
+              </div>
             </div>
-            {/* Right: Dispatch Details */}
-            <div className="p-3">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-gray-600">Dispatched Through:</span>
-                  <p className="font-semibold">{invoice.dispatchedThrough || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600">Destination:</span>
-                  <p className="font-semibold">{invoice.destination || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600">Vehicle No:</span>
-                  <p className="font-semibold">{invoice.motorVehicleNo || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600">Terms of Delivery:</span>
-                  <p className="font-semibold">{invoice.termsOfDelivery || '-'}</p>
+            
+            {/* Dispatch Details - Right */}
+            <div className="col-span-6">
+              <div className="bg-gray-100 px-3 py-1.5 border-b border-gray-400">
+                <h3 className="font-bold text-sm">DISPATCH DETAILS</h3>
+              </div>
+              <div className="p-3 text-sm">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  <div>
+                    <p className="text-gray-600 text-xs">Dispatched Through</p>
+                    <p className="font-medium">{invoice.dispatchedThrough || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 text-xs">Destination</p>
+                    <p className="font-medium">{invoice.destination || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 text-xs">Vehicle No.</p>
+                    <p className="font-medium">{invoice.motorVehicleNo || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 text-xs">Terms of Delivery</p>
+                    <p className="font-medium">{invoice.termsOfDelivery || '-'}</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Items Table */}
-          <table className="w-full border-collapse text-xs">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-gray-100">
-                <th className="border-b border-r border-black p-1.5 text-center w-8">Sl.</th>
-                <th className="border-b border-r border-black p-1.5 text-left">Description / Batch / Mfg</th>
-                <th className="border-b border-r border-black p-1.5 text-center w-16">HSN/SAC</th>
-                <th className="border-b border-r border-black p-1.5 text-center w-12">Cases</th>
-                <th className="border-b border-r border-black p-1.5 text-center w-12">Qty</th>
-                <th className="border-b border-r border-black p-1.5 text-center w-12">Unit</th>
-                <th className="border-b border-r border-black p-1.5 text-right w-16">Rate</th>
-                <th className="border-b border-r border-black p-1.5 text-center w-10">Disc%</th>
-                <th className="border-b border-black p-1.5 text-right w-20">Amount</th>
+                <th className="border-b-2 border-r border-gray-800 p-2 text-center w-10 font-bold">Sl.</th>
+                <th className="border-b-2 border-r border-gray-800 p-2 text-left font-bold">Description of Goods</th>
+                <th className="border-b-2 border-r border-gray-800 p-2 text-center w-16 font-bold">HSN</th>
+                <th className="border-b-2 border-r border-gray-800 p-2 text-center w-14 font-bold">Cases</th>
+                <th className="border-b-2 border-r border-gray-800 p-2 text-center w-12 font-bold">Qty</th>
+                <th className="border-b-2 border-r border-gray-800 p-2 text-center w-12 font-bold">Unit</th>
+                <th className="border-b-2 border-r border-gray-800 p-2 text-right w-16 font-bold">Rate</th>
+                <th className="border-b-2 border-r border-gray-800 p-2 text-center w-12 font-bold">Disc%</th>
+                <th className="border-b-2 border-gray-800 p-2 text-right w-20 font-bold">Amount</th>
               </tr>
             </thead>
             <tbody>
               {invoice.items.map((item) => (
-                <tr key={item.slNo}>
-                  <td className="border-b border-r border-black p-1.5 text-center">{item.slNo}</td>
-                  <td className="border-b border-r border-black p-1.5">
+                <tr key={item.slNo} className="border-b border-gray-300">
+                  <td className="border-r border-gray-300 p-2 text-center">{item.slNo}</td>
+                  <td className="border-r border-gray-300 p-2">
                     <div className="font-medium">{item.description}</div>
                     {(item.batchNumber || item.mfgDate) && (
-                      <div className="text-[10px] text-gray-600">
+                      <div className="text-xs text-gray-600 mt-0.5">
                         {item.batchNumber && <span>Batch: {item.batchNumber}</span>}
-                        {item.batchNumber && item.mfgDate && <span> | </span>}
+                        {item.batchNumber && item.mfgDate && <span className="mx-1">|</span>}
                         {item.mfgDate && <span>Mfg: {item.mfgDate}</span>}
                       </div>
                     )}
                   </td>
-                  <td className="border-b border-r border-black p-1.5 text-center">{item.hsnSac}</td>
-                  <td className="border-b border-r border-black p-1.5 text-center">{item.cases || '-'}</td>
-                  <td className="border-b border-r border-black p-1.5 text-center">{item.quantity}</td>
-                  <td className="border-b border-r border-black p-1.5 text-center">{item.unit}</td>
-                  <td className="border-b border-r border-black p-1.5 text-right">₹{item.rate.toFixed(2)}</td>
-                  <td className="border-b border-r border-black p-1.5 text-center">{item.discountPercent > 0 ? `${item.discountPercent}%` : '-'}</td>
-                  <td className="border-b border-black p-1.5 text-right">₹{item.finalAmount.toFixed(2)}</td>
+                  <td className="border-r border-gray-300 p-2 text-center">{item.hsnSac}</td>
+                  <td className="border-r border-gray-300 p-2 text-center">{item.cases || '-'}</td>
+                  <td className="border-r border-gray-300 p-2 text-center">{item.quantity}</td>
+                  <td className="border-r border-gray-300 p-2 text-center">{item.unit}</td>
+                  <td className="border-r border-gray-300 p-2 text-right">₹{item.rate.toFixed(2)}</td>
+                  <td className="border-r border-gray-300 p-2 text-center">{item.discountPercent > 0 ? `${item.discountPercent}%` : '-'}</td>
+                  <td className="p-2 text-right font-medium">₹{item.finalAmount.toFixed(2)}</td>
                 </tr>
               ))}
-              {/* Empty rows */}
-              {invoice.items.length < 3 && Array.from({ length: 3 - invoice.items.length }).map((_, i) => (
-                <tr key={`empty-${i}`}>
-                  <td className="border-b border-r border-black p-1.5">&nbsp;</td>
-                  <td className="border-b border-r border-black p-1.5"></td>
-                  <td className="border-b border-r border-black p-1.5"></td>
-                  <td className="border-b border-r border-black p-1.5"></td>
-                  <td className="border-b border-r border-black p-1.5"></td>
-                  <td className="border-b border-r border-black p-1.5"></td>
-                  <td className="border-b border-r border-black p-1.5"></td>
-                  <td className="border-b border-r border-black p-1.5"></td>
-                  <td className="border-b border-black p-1.5"></td>
+              {/* Empty rows for minimum height */}
+              {invoice.items.length < 5 && Array.from({ length: 5 - invoice.items.length }).map((_, i) => (
+                <tr key={`empty-${i}`} className="border-b border-gray-300">
+                  <td className="border-r border-gray-300 p-2">&nbsp;</td>
+                  <td className="border-r border-gray-300 p-2"></td>
+                  <td className="border-r border-gray-300 p-2"></td>
+                  <td className="border-r border-gray-300 p-2"></td>
+                  <td className="border-r border-gray-300 p-2"></td>
+                  <td className="border-r border-gray-300 p-2"></td>
+                  <td className="border-r border-gray-300 p-2"></td>
+                  <td className="border-r border-gray-300 p-2"></td>
+                  <td className="p-2"></td>
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={4} className="border-b border-r border-black p-1.5 text-right font-semibold">Total Qty:</td>
-                <td className="border-b border-r border-black p-1.5 text-center font-semibold">{invoice.totalQty}</td>
-                <td className="border-b border-r border-black p-1.5 text-center">Nos.</td>
-                <td colSpan={2} className="border-b border-r border-black p-1.5 text-right font-semibold">Subtotal:</td>
-                <td className="border-b border-black p-1.5 text-right font-semibold">₹{invoice.subtotal.toFixed(2)}</td>
-              </tr>
-              {invoice.taxes.map((tax, index) => (
-                <tr key={index}>
-                  <td colSpan={8} className="border-b border-r border-black p-1.5 text-right">{tax.name} @ {tax.percent}%:</td>
-                  <td className="border-b border-black p-1.5 text-right">₹{tax.amount.toFixed(2)}</td>
-                </tr>
-              ))}
-              {invoice.roundOff !== 0 && (
-                <tr>
-                  <td colSpan={8} className="border-b border-r border-black p-1.5 text-right">Round Off:</td>
-                  <td className="border-b border-black p-1.5 text-right">{invoice.roundOff >= 0 ? '+' : ''}₹{invoice.roundOff.toFixed(2)}</td>
-                </tr>
-              )}
-              <tr className="font-bold bg-gray-100">
-                <td colSpan={8} className="border-b border-r border-black p-1.5 text-right">Grand Total:</td>
-                <td className="border-b border-black p-1.5 text-right">₹{invoice.total.toFixed(2)}</td>
-              </tr>
-            </tfoot>
           </table>
 
-          {/* Amount in Words */}
-          <div className="border-b border-black p-2">
-            <p className="text-xs">
-              <span className="font-semibold">Amount Chargeable (in words): </span>
-              <span className="font-bold italic">{numberToWords(invoice.total)}</span>
-            </p>
+          {/* Totals Section */}
+          <div className="border-t-2 border-gray-800">
+            <div className="grid grid-cols-12">
+              {/* Left - Amount in Words */}
+              <div className="col-span-7 border-r-2 border-gray-800 p-3">
+                <p className="text-sm">
+                  <span className="font-semibold">Amount Chargeable (in words):</span>
+                </p>
+                <p className="text-sm font-bold mt-1 italic">{numberToWords(invoice.total)}</p>
+              </div>
+              
+              {/* Right - Calculations */}
+              <div className="col-span-5 text-sm">
+                <div className="flex justify-between px-3 py-1.5 border-b border-gray-300">
+                  <span>Total Qty:</span>
+                  <span className="font-semibold">{invoice.totalQty}</span>
+                </div>
+                <div className="flex justify-between px-3 py-1.5 border-b border-gray-300">
+                  <span>Subtotal:</span>
+                  <span className="font-semibold">₹{invoice.subtotal.toFixed(2)}</span>
+                </div>
+                {invoice.taxes.map((tax, index) => (
+                  <div key={index} className="flex justify-between px-3 py-1 border-b border-gray-300 text-gray-700">
+                    <span>{tax.name} @ {tax.percent}%:</span>
+                    <span>₹{tax.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+                {invoice.roundOff !== 0 && (
+                  <div className="flex justify-between px-3 py-1 border-b border-gray-300">
+                    <span>Round Off:</span>
+                    <span>{invoice.roundOff >= 0 ? '+' : ''}₹{invoice.roundOff.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between px-3 py-2 bg-gray-100 font-bold text-base">
+                  <span>GRAND TOTAL:</span>
+                  <span>₹{invoice.total.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Bank Details and Declaration */}
-          <div className="grid grid-cols-2 border-b border-black">
-            <div className="border-r border-black p-2">
-              <p className="text-xs font-semibold text-gray-600 mb-1">Bank Details</p>
-              {company?.bankName && <p className="text-xs">Bank: <span className="font-semibold">{company.bankName}</span></p>}
-              {company?.bankAccount && <p className="text-xs">A/c No.: <span className="font-semibold">{company.bankAccount}</span></p>}
-              {company?.bankIfsc && <p className="text-xs">IFSC: <span className="font-semibold">{company.bankIfsc}</span></p>}
+          {/* Bank Details & Declaration */}
+          <div className="grid grid-cols-12 border-t-2 border-gray-800">
+            <div className="col-span-6 border-r-2 border-gray-800 p-3">
+              <h4 className="font-bold text-sm mb-2 border-b border-gray-300 pb-1">Bank Details</h4>
+              <div className="text-sm space-y-0.5">
+                {company?.bankName && <p><span className="text-gray-600">Bank Name:</span> <span className="font-medium">{company.bankName}</span></p>}
+                {company?.bankAccount && <p><span className="text-gray-600">A/c No.:</span> <span className="font-medium">{company.bankAccount}</span></p>}
+                {company?.bankIfsc && <p><span className="text-gray-600">IFSC Code:</span> <span className="font-medium">{company.bankIfsc}</span></p>}
+              </div>
             </div>
-            <div className="p-2">
-              <p className="text-xs font-semibold text-gray-600 mb-1">Declaration</p>
-              <p className="text-[10px]">{invoice.declaration}</p>
+            <div className="col-span-6 p-3">
+              <h4 className="font-bold text-sm mb-2 border-b border-gray-300 pb-1">Declaration</h4>
+              <p className="text-xs text-gray-700 leading-tight">{invoice.declaration}</p>
             </div>
           </div>
 
           {/* Signature Section */}
-          <div className="p-3">
+          <div className="border-t-2 border-gray-800 p-4">
             <div className="flex justify-between items-end">
-              <div className="text-xs text-gray-500">
-                <p>Receiver's Signature</p>
+              <div className="text-center">
+                <p className="text-xs text-gray-600 mb-16">Receiver's Signature</p>
+                <div className="border-t border-gray-400 pt-1 w-32">
+                  <p className="text-xs">Date: _______________</p>
+                </div>
               </div>
               <div className="text-center">
-                <p className="text-xs font-semibold mb-1">For {company?.name || 'Company Name'}</p>
-                <div className="h-16 flex flex-col items-center justify-center gap-1">
+                <p className="text-sm font-semibold mb-1">For {company?.name || 'Company Name'}</p>
+                <div className="h-16 flex flex-col items-center justify-center gap-1 mb-2">
                   {company?.stamp && (
-                    <img src={company.stamp} alt="Stamp" className="h-12 object-contain" />
+                    <img src={company.stamp} alt="Stamp" className="h-14 object-contain" />
                   )}
                   {company?.signature && (
-                    <img src={company.signature} alt="Signature" className="h-8 object-contain" />
+                    <img src={company.signature} alt="Signature" className="h-10 object-contain" />
                   )}
                 </div>
-                <p className="text-xs font-semibold border-t border-black pt-1">Authorised Signatory</p>
+                <div className="border-t border-gray-800 pt-1">
+                  <p className="text-sm font-semibold">Authorised Signatory</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-2 text-center text-[10px] text-gray-500">
+        <div className="mt-3 text-center text-xs text-gray-500">
           <p>This is a computer generated invoice</p>
         </div>
       </div>
