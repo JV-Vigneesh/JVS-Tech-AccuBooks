@@ -147,3 +147,30 @@ export interface Customer {
   state?: string;
   createdAt: string;
 }
+
+export interface Quotation {
+  id: string;
+  quotationNumber: string;
+  companyId?: string;
+  customerName: string;
+  customerAddress: string;
+  customerGSTIN?: string;
+  customerEmail?: string;
+  customerMobile?: string;
+  customerState?: string;
+  date: string;
+  validUntil?: string;
+  subject?: string;
+  items: InvoiceItem[];
+  totalQty: number;
+  subtotal: number;
+  taxes: InvoiceTax[];
+  taxPercent: number;
+  taxAmount: number;
+  roundOff: number;
+  total: number;
+  termsAndConditions?: string;
+  notes?: string;
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
+  createdAt: string;
+}

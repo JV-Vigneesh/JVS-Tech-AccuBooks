@@ -1,4 +1,4 @@
-import { Product, Invoice, Voucher, InventoryTransaction, Company, Customer, DeliveryChallan } from '@/types/accounting';
+import { Product, Invoice, Voucher, InventoryTransaction, Company, Customer, DeliveryChallan, Quotation } from '@/types/accounting';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'accounting_products',
@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   COMPANIES: 'accounting_companies',
   CUSTOMERS: 'accounting_customers',
   CHALLANS: 'accounting_challans',
+  QUOTATIONS: 'accounting_quotations',
 };
 
 // Generic storage functions
@@ -205,4 +206,42 @@ export const saveCustomer = (customer: Customer): void => {
 export const deleteCustomer = (id: string): void => {
   const customers = getCustomers().filter(c => c.id !== id);
   saveItems(STORAGE_KEYS.CUSTOMERS, customers);
+};
+
+// Quotations
+export const getQuotations = (): Quotation[] => getItems<Quotation>(STORAGE_KEYS.QUOTATIONS);
+
+export const getQuotationsByCompany = (companyId: string): Quotation[] => {
+  return getQuotations().filter(q => q.companyId === companyId);
+};
+
+export const getNextQuotationNumber = (companyId?: string): string => {
+  const quotations = companyId ? getQuotationsByCompany(companyId) : getQuotations();
+  if (quotations.length === 0) return 'QT-1';
+  
+  const numbers = quotations
+    .map(q => {
+      const num = parseInt(q.quotationNumber.replace(/\D/g, ''), 10);
+      return isNaN(num) ? 0 : num;
+    })
+    .filter(n => n > 0);
+  
+  const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+  return `QT-${maxNumber + 1}`;
+};
+
+export const saveQuotation = (quotation: Quotation): void => {
+  const quotations = getQuotations();
+  const index = quotations.findIndex(q => q.id === quotation.id);
+  if (index >= 0) {
+    quotations[index] = quotation;
+  } else {
+    quotations.push(quotation);
+  }
+  saveItems(STORAGE_KEYS.QUOTATIONS, quotations);
+};
+
+export const deleteQuotation = (id: string): void => {
+  const quotations = getQuotations().filter(q => q.id !== id);
+  saveItems(STORAGE_KEYS.QUOTATIONS, quotations);
 };
