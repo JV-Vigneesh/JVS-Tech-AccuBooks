@@ -209,6 +209,7 @@ export default function InvoiceForm() {
       setInvoice({
         ...invoice,
         customerName: customer.name,
+        customerPartyName: customer.partyName || '',
         customerAddress: customer.address || '',
         customerGSTIN: customer.gstin || '',
         customerEmail: customer.email || '',

@@ -46,32 +46,61 @@ export default function QuotationView() {
     if (!quotationRef.current || !quotation) return;
 
     const canvas = await html2canvas(quotationRef.current, {
-      scale: 3,
+      scale: 2,
       useCORS: true,
+      allowTaint: true,
       logging: false,
       backgroundColor: '#ffffff',
-      width: quotationRef.current.scrollWidth,
-      height: quotationRef.current.scrollHeight,
     });
 
     const imgData = canvas.toDataURL('image/png', 1.0);
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pdfWidth - 10;
+    const imgWidth = pdfWidth - 16;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    let heightLeft = imgHeight;
-    let position = 5;
-
-    pdf.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
-    heightLeft -= pdfHeight;
-
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight + 5;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+    
+    const margin = 8;
+    const usableHeight = pdfHeight - (margin * 2);
+    
+    if (imgHeight <= usableHeight) {
+      pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
+    } else {
+      let remainingHeight = imgHeight;
+      let sourceY = 0;
+      let pageNum = 0;
+      
+      while (remainingHeight > 0) {
+        if (pageNum > 0) {
+          pdf.addPage();
+          pdf.setFontSize(8);
+          pdf.setTextColor(100);
+          pdf.text(`Quotation ${quotation.quotationNumber} - Continued...`, margin, margin - 2);
+        }
+        
+        const sliceHeight = Math.min(usableHeight, remainingHeight);
+        const sourceHeight = (sliceHeight / imgHeight) * canvas.height;
+        
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = sourceHeight;
+        const ctx = tempCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(
+            canvas,
+            0, sourceY, canvas.width, sourceHeight,
+            0, 0, canvas.width, sourceHeight
+          );
+          
+          const sliceData = tempCanvas.toDataURL('image/png', 1.0);
+          const yPos = pageNum === 0 ? margin : margin + 2;
+          pdf.addImage(sliceData, 'PNG', margin, yPos, imgWidth, sliceHeight);
+        }
+        
+        sourceY += sourceHeight;
+        remainingHeight -= sliceHeight;
+        pageNum++;
+      }
     }
 
     pdf.save(`Quotation-${quotation.quotationNumber}.pdf`);
@@ -100,256 +129,207 @@ export default function QuotationView() {
         </div>
       </div>
 
-      {/* Quotation Content - Professional Layout */}
+      {/* Quotation Content - Clean Modern Design */}
       <div 
         ref={quotationRef} 
-        className="bg-white max-w-[210mm] mx-auto shadow-lg print-area p-6"
-        style={{ backgroundColor: '#ffffff', color: '#000000', fontFamily: 'Arial, sans-serif' }}
+        id="printable-document"
+        className="bg-white max-w-[210mm] mx-auto shadow-lg"
+        style={{ backgroundColor: '#ffffff', color: '#1a1a1a', fontFamily: 'system-ui, -apple-system, sans-serif', padding: '32px' }}
       >
-        {/* Main Border Container */}
-        <div className="border-2 border-black">
-          {/* Header Section */}
-          <div className="border-b-2 border-black">
-            <div className="flex">
-              {/* Company Details - Left */}
-              <div className="flex-1 p-4 border-r-2 border-black">
-                <div className="flex items-start gap-4">
-                  {company?.logo && (
-                    <img 
-                      src={company.logo} 
-                      alt="Logo" 
-                      className="w-24 h-24 object-contain"
-                      style={{ minWidth: '96px', minHeight: '96px' }}
-                    />
-                  )}
-                  <div className="flex-1">
-                    <h1 className="text-2xl font-bold mb-1" style={{ color: '#000000' }}>{company?.name || 'Company Name'}</h1>
-                    <p className="text-sm whitespace-pre-line leading-tight" style={{ color: '#000000' }}>{company?.address || 'Company Address'}</p>
-                    <div className="mt-2 text-sm" style={{ color: '#000000' }}>
-                      {company?.mobile && <p><span className="font-semibold">Phone:</span> {company.mobile}</p>}
-                      {company?.email && <p><span className="font-semibold">Email:</span> {company.email}</p>}
-                      {company?.gstin && <p className="font-bold mt-1">GSTIN: {company.gstin}</p>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Quotation Info - Right */}
-              <div className="w-64 p-4">
-                <div className="text-center">
-                  <div className="border-2 border-black px-4 py-2 mb-3 inline-block">
-                    <h2 className="text-xl font-bold tracking-wide" style={{ color: '#000000' }}>QUOTATION</h2>
-                  </div>
-                  <div className="text-sm space-y-2 text-left" style={{ color: '#000000' }}>
-                    <div className="flex justify-between border-b border-black pb-1">
-                      <span className="font-semibold">Quotation No:</span>
-                      <span className="font-bold">{quotation.quotationNumber}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-black pb-1">
-                      <span className="font-semibold">Date:</span>
-                      <span>{format(new Date(quotation.date), 'dd-MMM-yyyy')}</span>
-                    </div>
-                    {quotation.validUntil && (
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Valid Until:</span>
-                        <span>{format(new Date(quotation.validUntil), 'dd-MMM-yyyy')}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+        {/* Header */}
+        <div className="flex justify-between items-start mb-8">
+          <div className="flex items-start gap-5">
+            {company?.logo && (
+              <img 
+                src={company.logo} 
+                alt="Logo" 
+                crossOrigin="anonymous"
+                style={{ width: '100px', height: '100px', objectFit: 'contain' }}
+              />
+            )}
+            <div>
+              <h1 className="text-xl font-semibold mb-1" style={{ color: '#1a1a1a', letterSpacing: '-0.02em' }}>{company?.name || 'Company Name'}</h1>
+              <p className="text-xs leading-relaxed max-w-[200px]" style={{ color: '#666666' }}>{company?.address}</p>
+              {company?.mobile && <p className="text-xs mt-1" style={{ color: '#666666' }}>{company.mobile}</p>}
+              {company?.email && <p className="text-xs" style={{ color: '#666666' }}>{company.email}</p>}
+              {company?.gstin && <p className="text-xs font-medium mt-1" style={{ color: '#1a1a1a' }}>GSTIN: {company.gstin}</p>}
             </div>
           </div>
-
-          {/* Customer Section */}
-          <div className="flex border-b-2 border-black">
-            {/* To - Left */}
-            <div className="flex-1 border-r-2 border-black">
-              <div className="bg-gray-200 px-3 py-1.5 border-b border-black">
-                <h3 className="font-bold text-sm" style={{ color: '#000000' }}>TO</h3>
-              </div>
-              <div className="p-3 text-sm min-h-[100px]" style={{ color: '#000000' }}>
-                <p className="font-bold text-base mb-1">{quotation.customerName}</p>
-                <p className="whitespace-pre-line leading-tight">{quotation.customerAddress}</p>
-                {quotation.customerState && <p className="mt-1"><span className="font-semibold">State:</span> {quotation.customerState}</p>}
-                {quotation.customerMobile && <p><span className="font-semibold">Mobile:</span> {quotation.customerMobile}</p>}
-                {quotation.customerEmail && <p><span className="font-semibold">Email:</span> {quotation.customerEmail}</p>}
-                {quotation.customerGSTIN && <p className="font-bold mt-1">GSTIN: {quotation.customerGSTIN}</p>}
-              </div>
-            </div>
-            
-            {/* Subject - Right */}
-            <div className="w-80">
-              <div className="bg-gray-200 px-3 py-1.5 border-b border-black">
-                <h3 className="font-bold text-sm" style={{ color: '#000000' }}>SUBJECT</h3>
-              </div>
-              <div className="p-3 text-sm" style={{ color: '#000000' }}>
-                <p className="font-medium">{quotation.subject || 'Quotation for Supply of Goods/Services'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Items Table */}
-          <table className="w-full border-collapse text-sm" style={{ color: '#000000' }}>
-            <thead>
-              <tr className="bg-gray-200">
-                <th className="border-b-2 border-r border-black p-2 text-center w-10 font-bold">Sl.</th>
-                <th className="border-b-2 border-r border-black p-2 text-left font-bold">Description</th>
-                <th className="border-b-2 border-r border-black p-2 text-center w-16 font-bold">HSN</th>
-                <th className="border-b-2 border-r border-black p-2 text-center w-12 font-bold">Qty</th>
-                <th className="border-b-2 border-r border-black p-2 text-center w-12 font-bold">Unit</th>
-                <th className="border-b-2 border-r border-black p-2 text-right w-16 font-bold">Rate</th>
-                <th className="border-b-2 border-r border-black p-2 text-center w-12 font-bold">Disc%</th>
-                <th className="border-b-2 border-black p-2 text-right w-20 font-bold">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {quotation.items.map((item) => (
-                <tr key={item.slNo} className="border-b border-black">
-                  <td className="border-r border-black p-2 text-center">{item.slNo}</td>
-                  <td className="border-r border-black p-2">
-                    <div className="font-medium">{item.description}</div>
-                    {(item.batchNumber || item.mfgDate) && (
-                      <div className="text-xs mt-0.5" style={{ color: '#000000' }}>
-                        {item.batchNumber && <span>Batch: {item.batchNumber}</span>}
-                        {item.batchNumber && item.mfgDate && <span className="mx-1">|</span>}
-                        {item.mfgDate && <span>Mfg: {item.mfgDate}</span>}
-                      </div>
-                    )}
-                  </td>
-                  <td className="border-r border-black p-2 text-center">{item.hsnSac}</td>
-                  <td className="border-r border-black p-2 text-center">{item.quantity}</td>
-                  <td className="border-r border-black p-2 text-center">{item.unit}</td>
-                  <td className="border-r border-black p-2 text-right">₹{item.rate.toFixed(2)}</td>
-                  <td className="border-r border-black p-2 text-center">{item.discountPercent > 0 ? `${item.discountPercent}%` : '-'}</td>
-                  <td className="p-2 text-right font-medium">₹{item.finalAmount.toFixed(2)}</td>
-                </tr>
-              ))}
-              {/* Empty rows for minimum height */}
-              {quotation.items.length < 5 && Array.from({ length: 5 - quotation.items.length }).map((_, i) => (
-                <tr key={`empty-${i}`} className="border-b border-black">
-                  <td className="border-r border-black p-2">&nbsp;</td>
-                  <td className="border-r border-black p-2"></td>
-                  <td className="border-r border-black p-2"></td>
-                  <td className="border-r border-black p-2"></td>
-                  <td className="border-r border-black p-2"></td>
-                  <td className="border-r border-black p-2"></td>
-                  <td className="border-r border-black p-2"></td>
-                  <td className="p-2"></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Totals Section */}
-          <div className="border-t-2 border-black">
-            <div className="flex">
-              {/* Left - Amount in Words */}
-              <div className="flex-1 border-r-2 border-black p-3" style={{ color: '#000000' }}>
-                <p className="text-sm">
-                  <span className="font-bold">Amount (in words):</span>
-                </p>
-                <p className="text-sm font-bold mt-1">{numberToWords(quotation.total)}</p>
-              </div>
-              
-              {/* Right - Calculations */}
-              <div className="w-64 text-sm" style={{ color: '#000000' }}>
-                <div className="flex justify-between px-3 py-1.5 border-b border-black">
-                  <span className="font-semibold">Total Qty:</span>
-                  <span className="font-bold">{quotation.totalQty}</span>
-                </div>
-                <div className="flex justify-between px-3 py-1.5 border-b border-black">
-                  <span className="font-semibold">Subtotal:</span>
-                  <span className="font-bold">₹{quotation.subtotal.toFixed(2)}</span>
-                </div>
-                {quotation.taxes.map((tax, index) => (
-                  <div key={index} className="flex justify-between px-3 py-1 border-b border-black">
-                    <span>{tax.name} @ {tax.percent}%:</span>
-                    <span>₹{tax.amount.toFixed(2)}</span>
-                  </div>
-                ))}
-                {quotation.roundOff !== 0 && (
-                  <div className="flex justify-between px-3 py-1 border-b border-black">
-                    <span>Round Off:</span>
-                    <span>{quotation.roundOff >= 0 ? '+' : ''}₹{quotation.roundOff.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between px-3 py-2 bg-gray-200 font-bold text-base">
-                  <span>TOTAL:</span>
-                  <span>₹{quotation.total.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Terms & Notes */}
-          <div className="flex border-t-2 border-black">
-            <div className="flex-1 border-r-2 border-black p-3" style={{ color: '#000000' }}>
-              <h4 className="font-bold text-sm mb-2 border-b border-black pb-1">Terms & Conditions</h4>
-              <p className="text-xs whitespace-pre-line leading-tight">{quotation.termsAndConditions}</p>
-            </div>
-            <div className="w-80 p-3" style={{ color: '#000000' }}>
-              {quotation.notes && (
-                <>
-                  <h4 className="font-bold text-sm mb-2 border-b border-black pb-1">Notes</h4>
-                  <p className="text-xs leading-tight">{quotation.notes}</p>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Signature Section */}
-          <div className="border-t-2 border-black p-4" style={{ color: '#000000' }}>
-            <div className="flex justify-between items-end">
-              <div className="text-center">
-                <p className="text-xs mb-16">Customer Acceptance</p>
-                <div className="border-t border-black pt-1 w-32">
-                  <p className="text-xs">Date: _______________</p>
-                </div>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-bold mb-1">For {company?.name || 'Company Name'}</p>
-                <div className="h-20 flex flex-col items-center justify-center gap-1 mb-2">
-                  {company?.stamp && (
-                    <img src={company.stamp} alt="Stamp" className="h-16 object-contain" />
-                  )}
-                  {company?.signature && (
-                    <img src={company.signature} alt="Signature" className="h-12 object-contain" />
-                  )}
-                </div>
-                <div className="border-t border-black pt-1">
-                  <p className="text-sm font-bold">Authorised Signatory</p>
-                </div>
-              </div>
+          
+          <div className="text-right">
+            <h2 className="text-2xl font-light tracking-wide mb-4" style={{ color: '#1a1a1a' }}>QUOTATION</h2>
+            <div className="text-xs space-y-1" style={{ color: '#666666' }}>
+              <p><span className="font-medium" style={{ color: '#1a1a1a' }}>{quotation.quotationNumber}</span></p>
+              <p>{format(new Date(quotation.date), 'dd MMM yyyy')}</p>
+              {quotation.validUntil && <p>Valid until: {format(new Date(quotation.validUntil), 'dd MMM yyyy')}</p>}
             </div>
           </div>
         </div>
 
-        <div className="mt-3 text-center text-xs" style={{ color: '#000000' }}>
-          <p>This is a computer generated quotation</p>
+        {/* Divider */}
+        <div className="h-px mb-6" style={{ backgroundColor: '#e5e5e5' }}></div>
+
+        {/* To & Subject */}
+        <div className="flex gap-12 mb-6">
+          <div className="flex-1">
+            <p className="text-[10px] font-medium uppercase tracking-wider mb-2" style={{ color: '#999999' }}>To</p>
+            <p className="text-sm font-medium" style={{ color: '#1a1a1a' }}>{quotation.customerName}</p>
+            {quotation.customerPartyName && (
+              <p className="text-xs" style={{ color: '#666666' }}>Attn: {quotation.customerPartyName}</p>
+            )}
+            <p className="text-xs leading-relaxed mt-1" style={{ color: '#666666' }}>{quotation.customerAddress}</p>
+            {quotation.customerState && <p className="text-xs" style={{ color: '#666666' }}>{quotation.customerState}</p>}
+            {quotation.customerMobile && <p className="text-xs mt-1" style={{ color: '#666666' }}>{quotation.customerMobile}</p>}
+            {quotation.customerGSTIN && <p className="text-xs font-medium mt-1" style={{ color: '#1a1a1a' }}>GSTIN: {quotation.customerGSTIN}</p>}
+          </div>
+          
+          {quotation.subject && (
+            <div className="w-56">
+              <p className="text-[10px] font-medium uppercase tracking-wider mb-2" style={{ color: '#999999' }}>Subject</p>
+              <p className="text-xs" style={{ color: '#666666' }}>{quotation.subject}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Items Table */}
+        <table className="w-full text-xs mb-6" style={{ color: '#1a1a1a' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #e5e5e5' }}>
+              <th className="py-3 text-left font-medium" style={{ color: '#999999', width: '5%' }}>#</th>
+              <th className="py-3 text-left font-medium" style={{ color: '#999999' }}>Description</th>
+              <th className="py-3 text-center font-medium" style={{ color: '#999999', width: '10%' }}>HSN</th>
+              <th className="py-3 text-center font-medium" style={{ color: '#999999', width: '10%' }}>Qty</th>
+              <th className="py-3 text-center font-medium" style={{ color: '#999999', width: '10%' }}>Unit</th>
+              <th className="py-3 text-right font-medium" style={{ color: '#999999', width: '12%' }}>Rate</th>
+              <th className="py-3 text-center font-medium" style={{ color: '#999999', width: '8%' }}>Disc</th>
+              <th className="py-3 text-right font-medium" style={{ color: '#999999', width: '14%' }}>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {quotation.items.map((item) => (
+              <tr key={item.slNo} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                <td className="py-3 text-left" style={{ color: '#999999' }}>{item.slNo}</td>
+                <td className="py-3">
+                  <span className="font-medium">{item.description}</span>
+                  {(item.batchNumber || item.mfgDate) && (
+                    <span className="ml-2" style={{ color: '#999999' }}>
+                      {item.batchNumber && `Batch: ${item.batchNumber}`}
+                      {item.batchNumber && item.mfgDate && ' • '}
+                      {item.mfgDate && `Mfg: ${item.mfgDate}`}
+                    </span>
+                  )}
+                </td>
+                <td className="py-3 text-center" style={{ color: '#666666' }}>{item.hsnSac}</td>
+                <td className="py-3 text-center">{item.quantity}</td>
+                <td className="py-3 text-center" style={{ color: '#666666' }}>{item.unit}</td>
+                <td className="py-3 text-right">₹{item.rate.toFixed(2)}</td>
+                <td className="py-3 text-center" style={{ color: '#666666' }}>{item.discountPercent > 0 ? `${item.discountPercent}%` : '-'}</td>
+                <td className="py-3 text-right font-medium">₹{item.finalAmount.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Totals */}
+        <div className="flex justify-between mb-8">
+          <div className="flex-1 pr-12">
+            <p className="text-[10px] font-medium uppercase tracking-wider mb-1" style={{ color: '#999999' }}>Amount in Words</p>
+            <p className="text-xs font-medium" style={{ color: '#1a1a1a' }}>{numberToWords(quotation.total)}</p>
+          </div>
+          
+          <div className="w-56">
+            <div className="flex justify-between py-1.5 text-xs">
+              <span style={{ color: '#666666' }}>Subtotal</span>
+              <span style={{ color: '#1a1a1a' }}>₹{quotation.subtotal.toFixed(2)}</span>
+            </div>
+            {quotation.taxes.map((tax, index) => (
+              <div key={index} className="flex justify-between py-1.5 text-xs">
+                <span style={{ color: '#666666' }}>{tax.name} @ {tax.percent}%</span>
+                <span style={{ color: '#1a1a1a' }}>₹{tax.amount.toFixed(2)}</span>
+              </div>
+            ))}
+            {quotation.roundOff !== 0 && (
+              <div className="flex justify-between py-1.5 text-xs">
+                <span style={{ color: '#666666' }}>Round Off</span>
+                <span style={{ color: '#1a1a1a' }}>{quotation.roundOff >= 0 ? '+' : ''}₹{quotation.roundOff.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between py-2 mt-1" style={{ borderTop: '1px solid #1a1a1a' }}>
+              <span className="text-sm font-semibold" style={{ color: '#1a1a1a' }}>Total</span>
+              <span className="text-sm font-semibold" style={{ color: '#1a1a1a' }}>₹{quotation.total.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Terms & Notes */}
+        <div className="flex gap-12 mb-8 py-4" style={{ borderTop: '1px solid #f0f0f0', borderBottom: '1px solid #f0f0f0' }}>
+          {quotation.termsAndConditions && (
+            <div className="flex-1">
+              <p className="text-[10px] font-medium uppercase tracking-wider mb-2" style={{ color: '#999999' }}>Terms & Conditions</p>
+              <p className="text-[10px] leading-relaxed whitespace-pre-line" style={{ color: '#666666' }}>{quotation.termsAndConditions}</p>
+            </div>
+          )}
+          {quotation.notes && (
+            <div className="w-56">
+              <p className="text-[10px] font-medium uppercase tracking-wider mb-2" style={{ color: '#999999' }}>Notes</p>
+              <p className="text-[10px] leading-relaxed" style={{ color: '#666666' }}>{quotation.notes}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Signature */}
+        <div className="flex justify-between items-end">
+          <div>
+            <div className="h-12 mb-1"></div>
+            <div className="w-28 pt-1" style={{ borderTop: '1px solid #cccccc' }}>
+              <p className="text-[10px]" style={{ color: '#999999' }}>Customer Acceptance</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-medium mb-1" style={{ color: '#1a1a1a' }}>For {company?.name}</p>
+            <div className="h-12 flex items-center justify-end gap-2 mb-1">
+              {company?.stamp && (
+                <img src={company.stamp} alt="Stamp" style={{ height: '60px', objectFit: 'contain' }} crossOrigin="anonymous" />
+              )}
+              {company?.signature && (
+                <img src={company.signature} alt="Signature" style={{ height: '50px', objectFit: 'contain' }} crossOrigin="anonymous" />
+              )}
+            </div>
+            <div className="w-32 pt-1 ml-auto" style={{ borderTop: '1px solid #cccccc' }}>
+              <p className="text-[10px] font-medium" style={{ color: '#1a1a1a' }}>Authorised Signatory</p>
+            </div>
+          </div>
         </div>
       </div>
 
       <style>{`
         @media print {
-          .no-print {
-            display: none !important;
+          @page {
+            size: A4;
+            margin: 10mm;
           }
-          body {
-            background: white !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+          
+          body * {
+            visibility: hidden;
           }
-          .print-area {
-            background: white !important;
-            color: black !important;
-            box-shadow: none !important;
+          
+          #printable-document,
+          #printable-document * {
+            visibility: visible;
+          }
+          
+          #printable-document {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 10mm !important;
+            box-shadow: none !important;
           }
-          .print-area * {
-            color: black !important;
+          
+          .no-print {
+            display: none !important;
           }
         }
       `}</style>

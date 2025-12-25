@@ -46,6 +46,7 @@ export interface Invoice {
   invoiceNumber: string;
   companyId?: string;
   customerName: string;
+  customerPartyName?: string;
   customerAddress: string;
   customerGSTIN?: string;
   customerEmail?: string;
@@ -75,6 +76,7 @@ export interface DeliveryChallan {
   challanNumber: string;
   companyId?: string;
   customerName: string;
+  customerPartyName?: string;
   customerAddress: string;
   customerGSTIN?: string;
   customerEmail?: string;
@@ -153,6 +155,7 @@ export interface Quotation {
   quotationNumber: string;
   companyId?: string;
   customerName: string;
+  customerPartyName?: string;
   customerAddress: string;
   customerGSTIN?: string;
   customerEmail?: string;

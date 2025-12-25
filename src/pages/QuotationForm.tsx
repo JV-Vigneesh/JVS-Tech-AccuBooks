@@ -206,6 +206,7 @@ export default function QuotationForm() {
       setQuotation({
         ...quotation,
         customerName: customer.name,
+        customerPartyName: customer.partyName || '',
         customerAddress: customer.address || '',
         customerGSTIN: customer.gstin || '',
         customerEmail: customer.email || '',

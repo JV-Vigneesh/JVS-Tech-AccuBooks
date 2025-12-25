@@ -1,6 +1,6 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, FileText, Package, Warehouse, Receipt, Users, Settings, Moon, Sun, Building2, ChevronDown, Truck, FileCheck } from 'lucide-react';
+import { LayoutDashboard, FileText, Package, Warehouse, Receipt, Users, Settings, Moon, Sun, Building2, ChevronDown, Truck, FileCheck, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
 import { useCompany } from '@/contexts/CompanyContext';
@@ -9,6 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
 const navigation = [
@@ -25,6 +26,7 @@ const navigation = [
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { selectedCompany, companies, setSelectedCompany } = useCompany();
 
@@ -50,7 +52,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <ChevronDown className="h-4 w-4 shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
+              <DropdownMenuContent className="w-56 bg-popover border border-border">
                 {companies.length === 0 ? (
                   <DropdownMenuItem disabled>
                     No companies. Add in Settings.
@@ -68,6 +70,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     </DropdownMenuItem>
                   ))
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/settings')}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add New Company
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

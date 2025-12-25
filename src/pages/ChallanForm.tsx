@@ -175,6 +175,7 @@ export default function ChallanForm() {
       setChallan({
         ...challan,
         customerName: customer.name,
+        customerPartyName: customer.partyName || '',
         customerAddress: customer.address || '',
         customerGSTIN: customer.gstin || '',
         customerEmail: customer.email || '',
