@@ -1,48 +1,29 @@
 import { Product, Invoice, Voucher, InventoryTransaction, Company, Customer, DeliveryChallan, Quotation } from '@/types/accounting';
-
-const STORAGE_KEYS = {
-  PRODUCTS: 'accounting_products',
-  INVOICES: 'accounting_invoices',
-  VOUCHERS: 'accounting_vouchers',
-  INVENTORY: 'accounting_inventory',
-  COMPANY: 'accounting_company',
-  COMPANIES: 'accounting_companies',
-  CUSTOMERS: 'accounting_customers',
-  CHALLANS: 'accounting_challans',
-  QUOTATIONS: 'accounting_quotations',
-};
-
-// Generic storage functions
-const getItems = <T>(key: string): T[] => {
-  const data = localStorage.getItem(key);
-  return data ? JSON.parse(data) : [];
-};
-
-const saveItems = <T>(key: string, items: T[]): void => {
-  localStorage.setItem(key, JSON.stringify(items));
-};
+import {
+  dbGetCompanies, dbSaveCompany, dbDeleteCompany,
+  dbGetCustomers, dbSaveCustomer, dbDeleteCustomer,
+  dbGetProducts, dbSaveProduct, dbDeleteProduct,
+  dbGetInvoices, dbSaveInvoice, dbDeleteInvoice,
+  dbGetQuotations, dbSaveQuotation, dbDeleteQuotation,
+  dbGetChallans, dbSaveChallan, dbDeleteChallan,
+  dbGetVouchers, dbSaveVoucher, dbDeleteVoucher,
+  dbGetInventoryTransactions, dbSaveInventoryTransaction,
+  getDatabase
+} from '@/lib/database';
 
 // Products
-export const getProducts = (): Product[] => getItems<Product>(STORAGE_KEYS.PRODUCTS);
+export const getProducts = (): Product[] => dbGetProducts();
 
 export const saveProduct = (product: Product): void => {
-  const products = getProducts();
-  const index = products.findIndex(p => p.id === product.id);
-  if (index >= 0) {
-    products[index] = product;
-  } else {
-    products.push(product);
-  }
-  saveItems(STORAGE_KEYS.PRODUCTS, products);
+  dbSaveProduct(product);
 };
 
 export const deleteProduct = (id: string): void => {
-  const products = getProducts().filter(p => p.id !== id);
-  saveItems(STORAGE_KEYS.PRODUCTS, products);
+  dbDeleteProduct(id);
 };
 
 // Invoices
-export const getInvoices = (): Invoice[] => getItems<Invoice>(STORAGE_KEYS.INVOICES);
+export const getInvoices = (): Invoice[] => dbGetInvoices();
 
 export const getInvoicesByCompany = (companyId: string): Invoice[] => {
   return getInvoices().filter(inv => inv.companyId === companyId);
@@ -64,23 +45,15 @@ export const getNextInvoiceNumber = (companyId?: string): string => {
 };
 
 export const saveInvoice = (invoice: Invoice): void => {
-  const invoices = getInvoices();
-  const index = invoices.findIndex(i => i.id === invoice.id);
-  if (index >= 0) {
-    invoices[index] = invoice;
-  } else {
-    invoices.push(invoice);
-  }
-  saveItems(STORAGE_KEYS.INVOICES, invoices);
+  dbSaveInvoice(invoice);
 };
 
 export const deleteInvoice = (id: string): void => {
-  const invoices = getInvoices().filter(i => i.id !== id);
-  saveItems(STORAGE_KEYS.INVOICES, invoices);
+  dbDeleteInvoice(id);
 };
 
 // Delivery Challans
-export const getChallans = (): DeliveryChallan[] => getItems<DeliveryChallan>(STORAGE_KEYS.CHALLANS);
+export const getChallans = (): DeliveryChallan[] => dbGetChallans();
 
 export const getChallansByCompany = (companyId: string): DeliveryChallan[] => {
   return getChallans().filter(c => c.companyId === companyId);
@@ -102,52 +75,33 @@ export const getNextChallanNumber = (companyId?: string): string => {
 };
 
 export const saveChallan = (challan: DeliveryChallan): void => {
-  const challans = getChallans();
-  const index = challans.findIndex(c => c.id === challan.id);
-  if (index >= 0) {
-    challans[index] = challan;
-  } else {
-    challans.push(challan);
-  }
-  saveItems(STORAGE_KEYS.CHALLANS, challans);
+  dbSaveChallan(challan);
 };
 
 export const deleteChallan = (id: string): void => {
-  const challans = getChallans().filter(c => c.id !== id);
-  saveItems(STORAGE_KEYS.CHALLANS, challans);
+  dbDeleteChallan(id);
 };
 
 // Vouchers
-export const getVouchers = (): Voucher[] => getItems<Voucher>(STORAGE_KEYS.VOUCHERS);
+export const getVouchers = (): Voucher[] => dbGetVouchers();
 
 export const getVouchersByCompany = (companyId: string): Voucher[] => {
   return getVouchers().filter(v => v.companyId === companyId);
 };
 
 export const saveVoucher = (voucher: Voucher): void => {
-  const vouchers = getVouchers();
-  const index = vouchers.findIndex(v => v.id === voucher.id);
-  if (index >= 0) {
-    vouchers[index] = voucher;
-  } else {
-    vouchers.push(voucher);
-  }
-  saveItems(STORAGE_KEYS.VOUCHERS, vouchers);
+  dbSaveVoucher(voucher);
 };
 
 export const deleteVoucher = (id: string): void => {
-  const vouchers = getVouchers().filter(v => v.id !== id);
-  saveItems(STORAGE_KEYS.VOUCHERS, vouchers);
+  dbDeleteVoucher(id);
 };
 
 // Inventory
-export const getInventoryTransactions = (): InventoryTransaction[] => 
-  getItems<InventoryTransaction>(STORAGE_KEYS.INVENTORY);
+export const getInventoryTransactions = (): InventoryTransaction[] => dbGetInventoryTransactions();
 
 export const saveInventoryTransaction = (transaction: InventoryTransaction): void => {
-  const transactions = getInventoryTransactions();
-  transactions.push(transaction);
-  saveItems(STORAGE_KEYS.INVENTORY, transactions);
+  dbSaveInventoryTransaction(transaction);
   
   // Update product stock
   const products = getProducts();
@@ -159,57 +113,39 @@ export const saveInventoryTransaction = (transaction: InventoryTransaction): voi
 };
 
 // Multiple Companies
-export const getCompanies = (): Company[] => getItems<Company>(STORAGE_KEYS.COMPANIES);
+export const getCompanies = (): Company[] => dbGetCompanies();
 
 export const saveCompanyToList = (company: Company): void => {
-  const companies = getCompanies();
-  const index = companies.findIndex(c => c.id === company.id);
-  if (index >= 0) {
-    companies[index] = company;
-  } else {
-    companies.push(company);
-  }
-  saveItems(STORAGE_KEYS.COMPANIES, companies);
+  dbSaveCompany(company);
 };
 
 export const deleteCompany = (id: string): void => {
-  const companies = getCompanies().filter(c => c.id !== id);
-  saveItems(STORAGE_KEYS.COMPANIES, companies);
+  dbDeleteCompany(id);
 };
 
 // Legacy single company support (for backward compatibility)
 export const getCompany = (): Company | null => {
-  const data = localStorage.getItem(STORAGE_KEYS.COMPANY);
-  return data ? JSON.parse(data) : null;
+  const companies = getCompanies();
+  return companies.length > 0 ? companies[0] : null;
 };
 
 export const saveCompany = (company: Company): void => {
-  localStorage.setItem(STORAGE_KEYS.COMPANY, JSON.stringify(company));
-  // Also save to companies list
   saveCompanyToList(company);
 };
 
 // Customers
-export const getCustomers = (): Customer[] => getItems<Customer>(STORAGE_KEYS.CUSTOMERS);
+export const getCustomers = (): Customer[] => dbGetCustomers();
 
 export const saveCustomer = (customer: Customer): void => {
-  const customers = getCustomers();
-  const index = customers.findIndex(c => c.id === customer.id);
-  if (index >= 0) {
-    customers[index] = customer;
-  } else {
-    customers.push(customer);
-  }
-  saveItems(STORAGE_KEYS.CUSTOMERS, customers);
+  dbSaveCustomer(customer);
 };
 
 export const deleteCustomer = (id: string): void => {
-  const customers = getCustomers().filter(c => c.id !== id);
-  saveItems(STORAGE_KEYS.CUSTOMERS, customers);
+  dbDeleteCustomer(id);
 };
 
 // Quotations
-export const getQuotations = (): Quotation[] => getItems<Quotation>(STORAGE_KEYS.QUOTATIONS);
+export const getQuotations = (): Quotation[] => dbGetQuotations();
 
 export const getQuotationsByCompany = (companyId: string): Quotation[] => {
   return getQuotations().filter(q => q.companyId === companyId);
@@ -231,17 +167,9 @@ export const getNextQuotationNumber = (companyId?: string): string => {
 };
 
 export const saveQuotation = (quotation: Quotation): void => {
-  const quotations = getQuotations();
-  const index = quotations.findIndex(q => q.id === quotation.id);
-  if (index >= 0) {
-    quotations[index] = quotation;
-  } else {
-    quotations.push(quotation);
-  }
-  saveItems(STORAGE_KEYS.QUOTATIONS, quotations);
+  dbSaveQuotation(quotation);
 };
 
 export const deleteQuotation = (id: string): void => {
-  const quotations = getQuotations().filter(q => q.id !== id);
-  saveItems(STORAGE_KEYS.QUOTATIONS, quotations);
+  dbDeleteQuotation(id);
 };

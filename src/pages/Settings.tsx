@@ -10,6 +10,7 @@ import { Company } from '@/types/accounting';
 import { useToast } from '@/hooks/use-toast';
 import { useCompany } from '@/contexts/CompanyContext';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import DataManagement from '@/components/DataManagement';
 
 const emptyCompany: Company = {
   id: '',
@@ -94,9 +95,12 @@ export default function Settings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Company Settings</h1>
-        <p className="text-muted-foreground">Manage your companies and branding</p>
+        <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+        <p className="text-muted-foreground">Manage your companies, branding, and data</p>
       </div>
+
+      {/* Data Management */}
+      <DataManagement />
 
       {/* Companies List */}
       {companies.length > 0 && (

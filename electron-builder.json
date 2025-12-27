@@ -1,0 +1,30 @@
+{
+  "appId": "com.yourcompany.accountingmanager",
+  "productName": "Accounting Manager",
+  "directories": {
+    "buildResources": "public",
+    "output": "dist"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": "portable",
+    "icon": "public/favicon.ico"
+  },
+  "mac": {
+    "target": null
+  },
+  "linux": {
+    "target": null
+  },
+  "publish": null,
+  "extraMetadata": {
+    "description": "Accounting Manager App",
+    "author": "Your Name"
+  },
+  "afterSign": null,
+  "forceCodeSigning": false
+}
